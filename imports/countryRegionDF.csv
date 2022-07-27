@@ -1,0 +1,50 @@
+﻿ISO 3166-alpha-2,Country Name,TiVA Region
+AT,Austria,EU
+BE,Belgium,EU
+BG,Bulgaria,EU
+CY,Cyprus,EU
+CZ,Czech Republic,EU
+DE,Germany,EU
+DK,Denmark,EU
+EE,Estonia,EU
+ES,Spain,EU
+FI,Finland,EU
+FR,France,EU
+GR,Greece,EU
+HR,Croatia,EU
+HU,Hungary,EU
+IE,Ireland,EU
+IT,Italy,EU
+LT,Lithuania,EU
+LU,Luxembourg,EU
+LV,Latvia,EU
+MT,Malta,EU
+NL,Netherlands,EU
+PL,Poland,EU
+PT,Portugal,EU
+RO,Romania,EU
+SE,Sweden,EU
+SI,Slovenia,EU
+SK,Slovakia,EU
+GB,United Kingdom,EU
+US,United States,US
+JP,Japan,ROW
+CN,China,CN
+CA,Canada,CA
+KR,"Korea, Republic of",ROW
+BR,Brazil,ROW
+IN,India,ROW
+MX,Mexico,MX
+RU,Russian Federation,EU
+AU,Australia,ROW
+CH,Switzerland,EU
+TR,Turkey,ROW
+TW,"Taiwan, Province of China",ROW
+NO,Norway,EU
+ID,Indonesia,ROW
+ZA,South Africa,ROW
+WA,Namibia,ROW
+WL,Saint Lucia,ROW
+WE,,ROW
+WF,Wallis and Futuna,ROW
+WM,,ROW
