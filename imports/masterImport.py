@@ -13,7 +13,7 @@ def runCode():
     downloadMRIO = True
     if downloadMRIO is True:
         downloadAndStoreMRIO()
-    MVector = extractMVector()
+    MVector = extractMVector() # little change
     
     return(unifiedSchema)
 
