@@ -1,0 +1,515 @@
+GLORIA Sector,BEA Summary
+Growing wheat,111CA
+Growing maize,111CA
+Growing cereals n.e.c,111CA
+Growing leguminous crops and oil seeds,111CA
+Growing leguminous crops and oil seeds,311FT
+Growing rice,111CA
+Growing rice,311FT
+"Growing vegetables, roots, tubers",111CA
+Growing sugar beet and cane,111CA
+Growing tobacco,111CA
+Growing tobacco,487OS
+Growing tobacco,562
+Growing fibre crops,111CA
+Growing fibre crops,113FF
+Growing fibre crops,311FT
+Growing fibre crops,487OS
+Growing fibre crops,562
+Growing fibre crops,313TT
+Growing crops n.e.c.,111CA
+Growing crops n.e.c.,113FF
+Growing crops n.e.c.,311FT
+Growing grapes,111CA
+Growing fruits and nuts,111CA
+Growing fruits and nuts,311FT
+"Growing beverage crops (coffee, tea etc)",111CA
+"Growing beverage crops (coffee, tea etc)",311FT
+"Growing spices, aromatic, drug and pharmaceutical crops",111CA
+Seeds and plant propagation,111CA
+Raising of cattle,111CA
+Raising of cattle,311FT
+Raising of sheep,111CA
+Raising of sheep,311FT
+Raising of sheep,313TT
+Raising of swine/pigs,111CA
+Raising of swine/pigs,311FT
+Raising of poultry,111CA
+Raising of poultry,311FT
+Raising of animals n.e.c.; services to agriculture,111CA
+Raising of animals n.e.c.; services to agriculture,332
+Raising of animals n.e.c.; services to agriculture,333
+Raising of animals n.e.c.; services to agriculture,339
+Raising of animals n.e.c.; services to agriculture,711AS
+Raising of animals n.e.c.; services to agriculture,487OS
+Raising of animals n.e.c.; services to agriculture,562
+Raising of animals n.e.c.; services to agriculture,113FF
+Raising of animals n.e.c.; services to agriculture,311FT
+Raising of animals n.e.c.; services to agriculture,313TT
+Forestry and logging,113FF
+Forestry and logging,321
+Forestry and logging,311FT
+Forestry and logging,325
+Fishing,113FF
+Fishing,111CA
+Fishing,311FT
+Crustaceans and molluscs,311FT
+Crustaceans and molluscs,111CA
+Hard coal,211
+Hard coal,212
+Lignite and peat,212
+Petroleum extraction,211
+Petroleum extraction,324
+Petroleum extraction,325
+Gas extraction,211
+Gas extraction,324
+Gas extraction,325
+Iron ores,212
+Iron ores,311FT
+Iron ores,325
+Uranium ores,212
+Aluminium ore,212
+Copper ores,212
+Gold ores,212
+Lead/zinc/silver ores,212
+Nickel ores,212
+Tin ores,212
+Other non-ferrous ores,212
+"Quarrying of stone, sand and clay",212
+"Quarrying of stone, sand and clay",327
+Chemical and fertilizer minerals,212
+Chemical and fertilizer minerals,311FT
+Chemical and fertilizer minerals,325
+Extraction of salt,212
+Extraction of salt,311FT
+Mining and quarrying n.e.c.; services to mining,212
+Beef meat,311FT
+Sheep meat,311FT
+Pork,311FT
+Poultry meat,311FT
+Other meat products,311FT
+Fish products,311FT
+Cereal products,311FT
+Vegetable products,311FT
+Vegetable products,111CA
+Fruit products,311FT
+Food products and feeds n.e.c.,111CA
+Food products and feeds n.e.c.,113FF
+Food products and feeds n.e.c.,311FT
+Food products and feeds n.e.c.,487OS
+Food products and feeds n.e.c.,562
+"Sugar refining; cocoa, chocolate and confectionery",111CA
+"Sugar refining; cocoa, chocolate and confectionery",311FT
+Animal oils and fats,311FT
+Animal oils and fats,313TT
+Animal oils and fats,325
+Animal oils and fats,332
+Animal oils and fats,111CA
+Vegetable oils and fats,311FT
+Vegetable oils and fats,325
+Vegetable oils and fats,332
+Vegetable oils and fats,339
+Dairy products,311FT
+Alcoholic and other  beverages,311FT
+Tobacco products,311FT
+Textiles and clothing,111CA
+Textiles and clothing,313TT
+Textiles and clothing,323
+Textiles and clothing,561
+Textiles and clothing,325
+Textiles and clothing,315AL
+Textiles and clothing,322
+Textiles and clothing,335
+Textiles and clothing,3361MV
+Textiles and clothing,339
+Textiles and clothing,337
+Textiles and clothing,332
+Textiles and clothing,333
+Textiles and clothing,711AS
+Textiles and clothing,326
+Leather and footwear,315AL
+Leather and footwear,313TT
+Leather and footwear,339
+Leather and footwear,332
+Leather and footwear,333
+Leather and footwear,711AS
+Leather and footwear,111CA
+Leather and footwear,321
+Leather and footwear,322
+Leather and footwear,325
+Leather and footwear,326
+Leather and footwear,3361MV
+Leather and footwear,337
+Sawmill products,321
+Sawmill products,324
+Sawmill products,337
+Sawmill products,339
+Pulp and paper,322
+Pulp and paper,339
+Pulp and paper,323
+Pulp and paper,332
+Printing,511
+Printing,514
+Printing,5412OP
+Printing,323
+Printing,339
+Coke oven products,324
+Coke oven products,325
+Coke oven products,22
+Refined petroleum products,324
+Refined petroleum products,325
+Refined petroleum products,322
+Refined petroleum products,327
+Refined petroleum products,335
+Refined petroleum products,3361MV
+Refined petroleum products,339
+Nitrogenous fertilizers,325
+Non-nitrogenous and mixed fertilizers,325
+Non-nitrogenous and mixed fertilizers,311FT
+Basic petrochemical products,311FT
+Basic petrochemical products,325
+Basic inorganic chemicals,311FT
+Basic inorganic chemicals,325
+Basic inorganic chemicals,322
+Basic inorganic chemicals,324
+Basic inorganic chemicals,327
+Basic inorganic chemicals,335
+Basic inorganic chemicals,3361MV
+Basic inorganic chemicals,339
+Basic inorganic chemicals,331
+Basic inorganic chemicals,332
+Basic inorganic chemicals,562
+Basic organic chemicals,311FT
+Basic organic chemicals,325
+Basic organic chemicals,332
+Basic organic chemicals,339
+Pharmaceuticals and medicinal products,311FT
+Pharmaceuticals and medicinal products,325
+Pharmaceuticals and medicinal products,339
+"Dyes, paints, glues, detergents and other chemical products",311FT
+"Dyes, paints, glues, detergents and other chemical products",325
+"Dyes, paints, glues, detergents and other chemical products",339
+"Dyes, paints, glues, detergents and other chemical products",332
+"Dyes, paints, glues, detergents and other chemical products",333
+"Dyes, paints, glues, detergents and other chemical products",711AS
+"Dyes, paints, glues, detergents and other chemical products",322
+"Dyes, paints, glues, detergents and other chemical products",324
+"Dyes, paints, glues, detergents and other chemical products",327
+"Dyes, paints, glues, detergents and other chemical products",335
+"Dyes, paints, glues, detergents and other chemical products",3361MV
+"Dyes, paints, glues, detergents and other chemical products",487OS
+"Dyes, paints, glues, detergents and other chemical products",562
+Rubber products,111CA
+Rubber products,113FF
+Rubber products,325
+Rubber products,313TT
+Rubber products,315AL
+Rubber products,326
+Rubber products,337
+Rubber products,339
+Plastic products,313TT
+Plastic products,321
+Plastic products,322
+Plastic products,325
+Plastic products,326
+Plastic products,332
+Plastic products,3361MV
+Plastic products,337
+Plastic products,339
+Plastic products,315AL
+Clay building materials,327
+Other ceramics n.e.c.,327
+Other ceramics n.e.c.,313TT
+Other ceramics n.e.c.,339
+Other ceramics n.e.c.,212
+Other ceramics n.e.c.,311FT
+Other ceramics n.e.c.,325
+"Cement, lime and plaster products",212
+"Cement, lime and plaster products",327
+Other non-metallic mineral products n.e.c.,327
+Other non-metallic mineral products n.e.c.,4A0
+Other non-metallic mineral products n.e.c.,322
+Other non-metallic mineral products n.e.c.,324
+Other non-metallic mineral products n.e.c.,325
+Other non-metallic mineral products n.e.c.,335
+Other non-metallic mineral products n.e.c.,3361MV
+Other non-metallic mineral products n.e.c.,339
+Basic iron and steel,331
+Basic iron and steel,332
+Basic iron and steel,337
+Basic iron and steel,333
+Basic iron and steel,322
+Basic iron and steel,323
+Basic iron and steel,339
+Basic iron and steel,335
+Basic aluminium,322
+Basic aluminium,331
+Basic aluminium,332
+Basic aluminium,337
+Basic aluminium,333
+Basic aluminium,323
+Basic aluminium,339
+Basic Copper,322
+Basic Copper,331
+Basic Copper,332
+Basic Copper,323
+Basic Copper,333
+Basic Copper,337
+Basic Copper,339
+Basic Copper,335
+Basic Gold,322
+Basic Gold,331
+Basic Gold,332
+Basic lead/zinc/silver,322
+Basic lead/zinc/silver,331
+Basic lead/zinc/silver,332
+Basic lead/zinc/silver,323
+Basic lead/zinc/silver,333
+Basic lead/zinc/silver,337
+Basic lead/zinc/silver,339
+Basic nickel,322
+Basic nickel,331
+Basic nickel,332
+Basic nickel,323
+Basic nickel,333
+Basic nickel,337
+Basic nickel,339
+Basic tin,322
+Basic tin,331
+Basic tin,332
+Basic tin,323
+Basic tin,333
+Basic tin,337
+Basic tin,339
+Basic non-ferrous metals n.e.c.,322
+Basic non-ferrous metals n.e.c.,331
+Basic non-ferrous metals n.e.c.,332
+Basic non-ferrous metals n.e.c.,327
+Basic non-ferrous metals n.e.c.,339
+Fabricated metal products,332
+Fabricated metal products,333
+Fabricated metal products,337
+Fabricated metal products,322
+Fabricated metal products,323
+Fabricated metal products,331
+Fabricated metal products,339
+Machinery and equipment,332
+Machinery and equipment,333
+Machinery and equipment,339
+Machinery and equipment,335
+Machinery and equipment,3361MV
+Machinery and equipment,3364OT
+Machinery and equipment,337
+Machinery and equipment,323
+Machinery and equipment,325
+Machinery and equipment,331
+Machinery and equipment,322
+"Motor vehicles, trailers and semi-trailers",332
+"Motor vehicles, trailers and semi-trailers",333
+"Motor vehicles, trailers and semi-trailers",3361MV
+"Motor vehicles, trailers and semi-trailers",3364OT
+"Motor vehicles, trailers and semi-trailers",326
+"Motor vehicles, trailers and semi-trailers",81
+Other transport equipment,333
+Other transport equipment,334
+Other transport equipment,3361MV
+Other transport equipment,3364OT
+Other transport equipment,81
+Other transport equipment,339
+Other transport equipment,332
+Other transport equipment,711AS
+Other transport equipment,326
+Other transport equipment,331
+Other transport equipment,313TT
+Other transport equipment,337
+Other transport equipment,487OS
+Other transport equipment,562
+Repair and installation of machinery and equipment,4A0
+Repair and installation of machinery and equipment,81
+Repair and installation of machinery and equipment,711AS
+Repair and installation of machinery and equipment,561
+Computers; electronic products; optical and precision instruments,325
+Computers; electronic products; optical and precision instruments,333
+Computers; electronic products; optical and precision instruments,339
+Computers; electronic products; optical and precision instruments,334
+Computers; electronic products; optical and precision instruments,332
+Computers; electronic products; optical and precision instruments,335
+Computers; electronic products; optical and precision instruments,3361MV
+Computers; electronic products; optical and precision instruments,313TT
+Computers; electronic products; optical and precision instruments,315AL
+Electrical equipment,333
+Electrical equipment,335
+Electrical equipment,332
+Electrical equipment,334
+Electrical equipment,339
+Electrical equipment,326
+Electrical equipment,3361MV
+Electrical equipment,331
+Electrical equipment,327
+Electrical equipment,313TT
+Electrical equipment,321
+Electrical equipment,322
+Electrical equipment,325
+Electrical equipment,337
+Furniture and other manufacturing n.e.c,332
+Furniture and other manufacturing n.e.c,333
+Furniture and other manufacturing n.e.c,339
+Furniture and other manufacturing n.e.c,711AS
+Furniture and other manufacturing n.e.c,337
+Furniture and other manufacturing n.e.c,334
+Furniture and other manufacturing n.e.c,321
+Furniture and other manufacturing n.e.c,326
+Furniture and other manufacturing n.e.c,313TT
+Furniture and other manufacturing n.e.c,3361MV
+Furniture and other manufacturing n.e.c,335
+Furniture and other manufacturing n.e.c,327
+Furniture and other manufacturing n.e.c,322
+Furniture and other manufacturing n.e.c,325
+Furniture and other manufacturing n.e.c,315AL
+Furniture and other manufacturing n.e.c,GFGN
+"Electric power generation, transmission and distribution",22
+"Electric power generation, transmission and distribution",561
+Distribution of gaseous fuels through mains,22
+Distribution of gaseous fuels through mains,561
+"Water collection, treatment and supply; sewerage",22
+"Water collection, treatment and supply; sewerage",311FT
+"Water collection, treatment and supply; sewerage",561
+"Water collection, treatment and supply; sewerage",562
+"Waste collection, treatment, and disposal",562
+"Waste collection, treatment, and disposal",561
+Materials recovery,487OS
+Materials recovery,562
+Materials recovery,212
+Materials recovery,322
+Materials recovery,331
+Materials recovery,332
+Building construction,23
+Civil engineering construction,23
+Civil engineering construction,213
+Civil engineering construction,561
+Wholesale and retail trade; repair of motor vehicles and motorcycles,42
+Wholesale and retail trade; repair of motor vehicles and motorcycles,441
+Wholesale and retail trade; repair of motor vehicles and motorcycles,445
+Wholesale and retail trade; repair of motor vehicles and motorcycles,4A0
+Wholesale and retail trade; repair of motor vehicles and motorcycles,452
+Wholesale and retail trade; repair of motor vehicles and motorcycles,81
+Wholesale and retail trade; repair of motor vehicles and motorcycles,561
+Road transport,485
+Road transport,487OS
+Road transport,713
+Road transport,484
+Rail transport,482
+Rail transport,487OS
+Rail transport,485
+Transport via pipeline,22
+Transport via pipeline,486
+Water transport,483
+Water transport,487OS
+Air transport,481
+Air transport,487OS
+Air transport,GFE
+Services to transport,487OS
+Services to transport,493
+Services to transport,81
+Services to transport,3364OT
+Services to transport,441
+Services to transport,561
+Services to transport,713
+Services to transport,GSLG
+Services to transport,GFGN
+Postal and courier services,GFE
+Postal and courier services,487OS
+Hospitality,721
+Hospitality,722
+Publishing,511
+Publishing,514
+Publishing,323
+Publishing,339
+Publishing,334
+Publishing,512
+Telecommunications,513
+Information services,513
+Information services,81
+Information services,514
+Finance and insurance,521CI
+Finance and insurance,55
+Finance and insurance,525
+Finance and insurance,524
+Finance and insurance,523
+Finance and insurance,5412OP
+Property and real estate,521CI
+"Professional, scientific and technical services",5412OP
+"Professional, scientific and technical services",5411
+"Professional, scientific and technical services",711AS
+"Professional, scientific and technical services",5415
+"Professional, scientific and technical services",511
+"Professional, scientific and technical services",514
+"Professional, scientific and technical services",55
+"Professional, scientific and technical services",81
+"Professional, scientific and technical services",561
+"Professional, scientific and technical services",332
+"Professional, scientific and technical services",3361MV
+"Professional, scientific and technical services",339
+Administrative services,523
+Administrative services,HS
+Administrative services,ORE
+Administrative services,561
+Administrative services,532RL
+Administrative services,5412OP
+Administrative services,23
+Administrative services,487OS
+Administrative services,81
+Administrative services,325
+Administrative services,323
+Administrative services,113FF
+Administrative services,213
+Government; social security; defence; public order,561
+Government; social security; defence; public order,GSLG
+Government; social security; defence; public order,GFGN
+Government; social security; defence; public order,GFE
+Government; social security; defence; public order,GFGD
+Government; social security; defence; public order,GSLE
+Education,61
+Human health and social work activities,622
+Human health and social work activities,621
+Human health and social work activities,623
+Human health and social work activities,113FF
+Human health and social work activities,5412OP
+Human health and social work activities,624
+Human health and social work activities,61
+"Arts, entertainment and recreation",713
+"Arts, entertainment and recreation",721
+"Arts, entertainment and recreation",512
+"Arts, entertainment and recreation",513
+"Arts, entertainment and recreation",514
+"Arts, entertainment and recreation",711AS
+"Arts, entertainment and recreation",81
+"Arts, entertainment and recreation",61
+Other services,81
+Other services,561
+Other services,GFGN
+Other services,F02N
+Other services,F02R
+Other services,F02S
+Other services,F030
+Other services,F06C
+Other services,F06N
+Other services,F07C
+Other services,F07E
+Other services,Other
+Other services,F06S
+Other services,V002
+Other services,42
+Other services,F02E
+Other services,F07S
+Other services,F10C
+Other services,F10E
+Other services,F10N
+Other services,F040
+Other services,F050
+Other services,Used
+Other services,F06E
+Other services,F07N
+Other services,V001
+Other services,V003
+Other services,F10S
