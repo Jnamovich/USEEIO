@@ -17,9 +17,10 @@ def run_script():
         regional_imports_df = pull_and_process_imports_data()
         pkl.dump(regional_imports_df,
                  open(dataPath/'regional_imports_df.pkl', 'wb'))
+    import_contribution_coeffs = calculate_contribution_coefficients_imports()
 
     download_and_store_mrio() #Toggle if pkl file is not in working directory
-    import_contribution_coeffs = calculate_contribution_coefficients_imports()
+
     tiva_to_exio = open_tiva_region_concordance()
     exio3_to_useeio_binary = exiobase_to_useeio_concordance()
     exio3_to_useeio_concordance = (
@@ -213,17 +214,15 @@ def calculate_contribution_coefficients(dataframe):
     return cleaned_coefficients
 
 
-def calculate_contribution_coefficients_imports():
+def calculate_contribution_coefficients_imports(regional_imports_df):
     # Calculate the fractional contributions, by TiVA region used in BEA 
     # imports data, to total imports by USEEIO-summary sector. 
-    regional_imports_df = pkl.load(
-        open(dataPath/'regional_imports_df.pkl','rb'))
     import_contribution_coeffs = (regional_imports_df.div(regional_imports_df
-                                                         .sum(axis=1),axis=0)
+                                                         .sum(axis=1), axis=0)
                                                          .fillna(0))
     import_contribution_coeffs = (import_contribution_coeffs
                                   .reset_index(level=0)
-                                  .rename(columns={'index':'BEA Summary'}))
+                                  .rename(columns={'index': 'BEA Summary'}))
     import_contribution_coeffs = (import_contribution_coeffs
                                   .melt(id_vars=['BEA Summary'],
                                         var_name='TiVA Region',
