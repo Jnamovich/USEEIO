@@ -37,8 +37,12 @@ def run_script():
         )
     
     exiobase_emissions_multipliers_df = pull_exiobase_multipliers()
-    multiplier_df = merge_components(clean_coefficient_dataframe,
-                                 exiobase_emissions_multipliers_df)
+    multiplier_df = (
+        clean_coefficient_dataframe.merge(exiobase_emissions_multipliers_df,
+                                          how='left',
+                                          on=['Country','Exiobase Sector'])
+        )
+
     weighted_multipliers_bea, weighted_multipliers_exio = (
         calculate_specific_emission_factors(multiplier_df))
     weighted_multipliers_exiobase = (
@@ -189,11 +193,12 @@ def pull_exiobase_industry_output_vector():
 def pull_exiobase_multipliers():
     # Extracts multiplier matrix from stored Exiobase model.
     
-    with open("multipliers_renaming.yml", "r") as file:
+    with open(dataPath/"multipliers_renaming.yml", "r") as file:
         renamed_categories = yaml.safe_load(file)
     exiobase_multipliers_df = pkl.load(
         open(dataPath/'exio3_multipliers.pkl','rb'))
-    exiobase_emissions_multipliers_df = exiobase_multipliers_df[37:40]
+    exiobase_emissions_multipliers_df = exiobase_multipliers_df.loc[
+        exiobase_multipliers_df.index.isin(renamed_categories.keys())]
     exiobase_emissions_multipliers_df = (exiobase_emissions_multipliers_df
         .transpose().reset_index()
         .rename(columns=renamed_categories))
@@ -279,16 +284,6 @@ def clean_coefficient_dataframe(df):
          'region_contributions_TiVA','region_contributions_BEA']]
     return df
 
-def merge_components(dataframe, exiobase_emissions_multipliers_df):
-    
-    multiplier_df = (
-        dataframe.merge(exiobase_emissions_multipliers_df,
-                        how='left',
-                        left_on=['Country','Exiobase Sector'],
-                        right_on=['Country','Exiobase Sector'])
-        )    
-    
-    return multiplier_df
 
 def calculate_specific_emission_factors(multiplier_df):
     # Calculates TiVA-exiobase sector and TiVA-bea summary sector emission
