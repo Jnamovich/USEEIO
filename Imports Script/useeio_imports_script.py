@@ -8,7 +8,7 @@ dataPath = Path(__file__).parent
 
 
 def run_script():
-    #Runs through script to produce emission factors for U.S. imports.
+    # Runs through script to produce emission factors for U.S. imports.
     
     imports_path = dataPath/'regional_imports_df.pkl'
     if imports_path.is_file():
@@ -19,18 +19,18 @@ def run_script():
                  open(dataPath/'regional_imports_df.pkl', 'wb'))
     import_contribution_coeffs = calculate_contribution_coefficients_imports()
 
-    download_and_store_mrio() #Toggle if pkl file is not in working directory
+    # Toggle if pkl file is not in working directory
+    # download_and_store_mrio() 
 
-    tiva_to_exio = open_tiva_region_concordance()
-    exio3_to_useeio_binary = exiobase_to_useeio_concordance()
-    exio3_to_useeio_concordance = (
-        process_exio_to_useeio_concordance(exio3_to_useeio_binary)
-        )
+    region_mapping = open_tiva_region_concordance()
+
+    sector_mapping = exiobase_to_useeio_concordance()
+
     useeio_detail_to_summary = pull_and_subset_useeio_crosswalk()
     exio_indout = pull_exiobase_industry_output_vector()
     exiobase_emissions_multipliers_df = pull_exiobase_multipliers()
-    prepared_dataframe = prepare_for_calculations(tiva_to_exio,exio_indout,
-                                                  exio3_to_useeio_concordance,
+    prepared_dataframe = prepare_for_calculations(region_mapping, exio_indout,
+                                                  sector_mapping,
                                                   useeio_detail_to_summary)
     clean_coefficient_dataframe = (
         calculate_contribution_coefficients(prepared_dataframe)
@@ -83,14 +83,15 @@ def pull_and_process_imports_data(year='2020'):
 
 def download_and_store_mrio():
     # If MRIO object not already present in directory, downloads MRIO object.
+    #TODO Explore autodownload
+    
     # exio3 = pymrio.download_exiobase3(storage_folder=dataPath,system='pxp', 
     #                                 years=[2022])
     exio3 = pymrio.parse_exiobase3('IOT_2022_pxp.zip')
-    exiobase_multipliers_df = exio3.impacts.M
-    exio_indout = exio3.x                                                       #Explore autodownload
-    pkl.dump(exio_indout,open(dataPath/'exio3_indout.pkl', 'wb'))
-    pkl.dump(exiobase_multipliers_df,
-             open(dataPath/'exio3_multipliers.pkl', 'wb'))
+    exio_m = exio3.impacts.M
+    exio_indout = exio3.x                                                       
+    pkl.dump(exio_indout, open(dataPath/'exio3_indout.pkl', 'wb'))
+    pkl.dump(exio_m, open(dataPath/'exio3_multipliers.pkl', 'wb'))
 
 
 def remove_exports(dataframe):
@@ -104,21 +105,22 @@ def remove_exports(dataframe):
 
 def open_tiva_region_concordance():
     # Opens concordance dataframe of TiVA regions to exiobase countries.
-    
-    tiva_to_exio = (pd.read_csv('exio_tiva_concordance.csv')
-        .rename(columns={'ISO 3166-alpha-2':'region'}))
+    path = dataPath/'exio_tiva_concordance.csv'
+    tiva_to_exio = (pd.read_csv(path)
+                    .rename(columns={'ISO 3166-alpha-2': 'region'}))
     tiva_to_exio = tiva_to_exio[["TiVA Region","region"]]
     return tiva_to_exio
 
 
 def exiobase_to_useeio_concordance():
     # Opens Exiobase to USEEIO binary concordance.
-    
-    exio3_to_useeio_binary = pd.read_csv(
-        "exio_to_bea_commodity_concordance.csv",dtype=str)
-    exio3_to_useeio_binary.rename(columns ={'Unnamed: 0':'BEA Detail'},
-                                inplace=True)
-    return exio3_to_useeio_binary
+    path = dataPath/"exio_to_bea_commodity_concordance.csv"
+    exio3_to_useeio_binary = (pd.read_csv(path, dtype=str)
+                              .rename(columns={'Unnamed: 0':'BEA Detail'}))
+
+    exio3_to_useeio_concordance = process_exio_to_useeio_concordance(
+        exio3_to_useeio_binary)
+    return exio3_to_useeio_concordance
 
 
 def process_exio_to_useeio_concordance(exio3_to_useeio_binary):
@@ -132,7 +134,8 @@ def process_exio_to_useeio_concordance(exio3_to_useeio_binary):
     exio3_to_useeio_concordance = (exio3_to_useeio_long
                                    .loc[exio3_to_useeio_long['value'] == '1']
                                    .rename(columns={'variable':
-                                                    'Exiobase Sector'}))
+                                                    'Exiobase Sector'})
+                                   .reset_index(drop=True))
     exio3_to_useeio_concordance = (
         exio3_to_useeio_concordance[['BEA Detail','Exiobase Sector']]
         )
