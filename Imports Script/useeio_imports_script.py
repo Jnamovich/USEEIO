@@ -51,7 +51,12 @@ def run_script():
         calculateWeightedEFsImportsData(weighted_multipliers_exiobase,
                                         import_contribution_coeffs)
         )
-    return (prepared_dataframe,imports_multipliers, weighted_multipliers_bea, 
+    
+    #TODO Currency adjustment
+    
+    #TODO Price adjustment
+    
+    return (prepared_dataframe, imports_multipliers, weighted_multipliers_bea, 
             weighted_multipliers_exio)
     
     
@@ -333,7 +338,7 @@ def calculate_specific_emission_factors(multiplier_df):
         .agg({'(Weighted_exio) Carbon Dioxide (CO2)': 'sum', 
               '(Weighted_exio) Methane (CH4)': 'sum',
               '(Weighted_exio) Nitrous Oxide (N2O)': 'sum'}).reset_index())
-    return(weighted_multipliers_bea,weighted_multipliers_exio)
+    return(weighted_multipliers_bea, weighted_multipliers_exio)
 
 
 def calculate_emission_factors(multiplier_df):
@@ -423,5 +428,5 @@ def calculateWeightedEFsImportsData(weighted_multipliers_exiobase,
     return imports_multipliers
 
 
-prepared_dataframe, imports_multipliers, weighted_multipliers_bea, weighted_multipliers_exio = (
-    run_script())
+(prepared_dataframe, imports_multipliers, 
+ weighted_multipliers_bea, weighted_multipliers_exio) = run_script()
