@@ -10,7 +10,14 @@ dataPath = Path(__file__).parent
 def run_script():
     #Runs through script to produce emission factors for U.S. imports.
     
-    # pull_and_process_imports_data() #Toggle if pkl file is not in working directory
+    imports_path = dataPath/'regional_imports_df.pkl'
+    if imports_path.is_file():
+        regional_imports_df = pd.read_pickle(imports_path)
+    else:
+        regional_imports_df = pull_and_process_imports_data()
+        pkl.dump(regional_imports_df,
+                 open(dataPath/'regional_imports_df.pkl', 'wb'))
+
     download_and_store_mrio() #Toggle if pkl file is not in working directory
     import_contribution_coeffs = calculate_contribution_coefficients_imports()
     tiva_to_exio = open_tiva_region_concordance()
@@ -42,36 +49,35 @@ def run_script():
             weighted_multipliers_exio)
     
     
-def pull_and_process_imports_data():
+def pull_and_process_imports_data(year='2020'):
     # Iteratively pulls BEA imports data matricies from source URL, extracts 
     # the BEA NAICS and Total Imports columns, and consolidates all imports
     # stats into one dataframe. 
-    
-    imports_data_year = '2020'
     imports_data_url_stem = ('https://www.bea.gov/system/files/2021-12/Import'
                              '%20Matrix%20')
-    bea_to_tiva_dict = {'ROW':'ROW','Canada':'CA','Mexico':'MX','China':'CN',
-                        'Europe':'EU'} # key: Imports Region, value: TiVA Region 
+    bea_to_tiva_dict = {'ROW': 'ROW',
+                        'Canada': 'CA',
+                        'Mexico': 'MX',
+                        'China': 'CN',
+                        'Europe': 'EU'} # key: Imports Region, value: TiVA Region 
     rows_to_skip=[0,1,2,3,4,5,6,8] # rows within the data sheets to omit
     regional_imports_df = pd.DataFrame() # empty dataframe to replace/populate
-    for region in bea_to_tiva_dict:
-        partner_url = (imports_data_url_stem + region +'.xlsx')
-        partnerDF = pd.read_excel(partner_url,sheet_name=imports_data_year, 
-                    skiprows=rows_to_skip,index_col=0).rename(
-                    columns={'Unnamed: 0':'Industry/Commodity Code:',
-                             'F050':bea_to_tiva_dict[region]})
-        extracted_imports_column = partnerDF[bea_to_tiva_dict[region]]
-        if regional_imports_df.empty == True:
+    for region, abbv in bea_to_tiva_dict.items():
+        partner_url = f'{imports_data_url_stem}{region}.xlsx'
+        partnerDF = (pd.read_excel(partner_url, sheet_name=year, 
+                                   skiprows=rows_to_skip, index_col=0)
+                     .rename(columns={'Unnamed: 0': 'Industry/Commodity Code:',
+                                      'F050': abbv}))
+        extracted_imports_column = partnerDF[abbv]
+        if regional_imports_df.empty:
             # dataframe to populate doesn't exist, becomes dataframe
             regional_imports_df = extracted_imports_column
         else:
             # dataframe exists, new columns added
-            regional_imports_df = pd.concat([regional_imports_df, 
-                                             extracted_imports_column], axis=1
-                                            )                                   #VERIFY CONCAT MERGES ON INDEX
+            regional_imports_df = pd.concat(
+                [regional_imports_df, extracted_imports_column], axis=1)
     regional_imports_df = remove_exports(regional_imports_df)
-    pkl.dump(regional_imports_df,open(dataPath/'regional_imports_df.pkl', 
-                                      'wb'))
+    return regional_imports_df
     
 
 def download_and_store_mrio():
