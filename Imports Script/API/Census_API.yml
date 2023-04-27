@@ -1,0 +1,17 @@
+author: US Census Bureau
+source_name: USA Data
+source_url: https://www.census.gov/programs-surveys/cbp.html
+bib_id: Census
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: http://api.census.gov/data/
+  api_path: timeseries/intltrade/imports/naics?   
+  url_params:
+    get: NAICS,GEN_CIF_YR,CTY_CODE   
+    COMM_LVL: NA6
+    CTY_CODE: __areaorcountry__
+    YEAR: __year__
+years:
+- 2020

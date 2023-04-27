@@ -1,0 +1,9 @@
+{
+    "description": "EXIOBASE3 metadata file for pymrio",
+    "name": "EXIO3",
+    "system": "pxp",
+    "version": "10.5281/zenodo.3583070",
+    "history": [
+        "20230414 11:23:02 - FILEIO -  Downloaded https://zenodo.org/record/5589597/files/IOT_2022_pxp.zip to IOT_2022_pxp.zip"
+    ]
+}
