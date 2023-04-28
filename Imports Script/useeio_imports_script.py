@@ -222,7 +222,7 @@ def get_subregion_imports(): #TO-DO: Reconstruct using census and BEA data
 def pull_exiobase_multipliers():
     # Extracts multiplier matrix from stored Exiobase model.
     
-    with open(dataPath/"multipliers_renaming.yml", "r") as file:
+    with open(dataPath.parent / "Test" /"multipliers_renaming.yml", "r") as file:
         renamed_categories = yaml.safe_load(file)
 
     file = dataPath/'exio3_multipliers.pkl'
@@ -296,50 +296,28 @@ def calculate_specific_emission_factors(multiplier_df):
     # Calculates TiVA-exiobase sector and TiVA-bea summary sector emission
     # multipliers.
     
-    multiplier_df['(Weighted_exio) Carbon Dioxide (CO2)'] = (
-        multiplier_df['Carbon Dioxide (CO2)']
-        *multiplier_df['region_contributions_TiVA']
-        )
-    multiplier_df['(Weighted_exio) Methane (CH4)'] = (
-        multiplier_df['Methane (CH4)']
-        *multiplier_df['region_contributions_TiVA']
-        )
-    multiplier_df['(Weighted_exio) Nitrous Oxide (N2O)'] = (
-        multiplier_df['Nitrous Oxide (N2O)']
-        *multiplier_df['region_contributions_TiVA']
-        )
-    multiplier_df['(Weighted_BEA) Carbon Dioxide (CO2)'] = (
-        multiplier_df['Carbon Dioxide (CO2)']
-        *multiplier_df['region_contributions_BEA']
-        )
-    multiplier_df['(Weighted_BEA) Methane (CH4)'] = (
-        multiplier_df['Methane (CH4)']
-        *multiplier_df['region_contributions_BEA']
-        )
-    multiplier_df['(Weighted_BEA) Nitrous Oxide (N2O)'] = (
-        multiplier_df['Nitrous Oxide (N2O)']
-        *multiplier_df['region_contributions_BEA']
-        )
-    tiva_exio_multiplier_df = multiplier_df[
-        ['TiVA Region','Exiobase Sector',
-         '(Weighted_exio) Carbon Dioxide (CO2)',
-         '(Weighted_exio) Methane (CH4)',
-         '(Weighted_exio) Nitrous Oxide (N2O)']]
-    tiva_bea_multiplier_df = multiplier_df[
-        ['TiVA Region','BEA Summary',
-         '(Weighted_BEA) Carbon Dioxide (CO2)',
-         '(Weighted_BEA) Methane (CH4)',
-         '(Weighted_BEA) Nitrous Oxide (N2O)']]
-    weighted_multipliers_bea = (tiva_bea_multiplier_df
-        .groupby(['TiVA Region','BEA Summary'])
-        .agg({'(Weighted_BEA) Carbon Dioxide (CO2)': 'sum', 
-              '(Weighted_BEA) Methane (CH4)': 'sum',
-              '(Weighted_BEA) Nitrous Oxide (N2O)': 'sum'}).reset_index())
-    weighted_multipliers_exio = (tiva_exio_multiplier_df
+    flows = ['Carbon Dioxide (CO2)',
+             'Methane (CH4)',
+             'Nitrous Oxide (N2O)']
+    #TODO ^^ replace with names in metadata file
+
+    multiplier_df = multiplier_df.melt(
+        id_vars = [c for c in multiplier_df if c not in flows],
+        var_name = 'Flow',
+        value_name = 'EF')
+    multiplier_df = (multiplier_df
+                     .assign(Weighted_exio = (multiplier_df['EF'] *
+                             multiplier_df['region_contributions_TiVA']))
+                     .assign(Weighted_BEA = (multiplier_df['EF'] *
+                             multiplier_df['region_contributions_BEA']))
+                     )
+
+    weighted_multipliers_bea = (multiplier_df
+        .groupby(['TiVA Region','BEA Summary', 'Flow'])
+        .agg({'Weighted_BEA': 'sum'}).reset_index())
+    weighted_multipliers_exio = (multiplier_df
         .groupby(['TiVA Region','Exiobase Sector'])
-        .agg({'(Weighted_exio) Carbon Dioxide (CO2)': 'sum', 
-              '(Weighted_exio) Methane (CH4)': 'sum',
-              '(Weighted_exio) Nitrous Oxide (N2O)': 'sum'}).reset_index())
+        .agg({'Weighted_exio': 'sum'}).reset_index())
     return(weighted_multipliers_bea, weighted_multipliers_exio)
 
 
