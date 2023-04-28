@@ -1,12 +1,13 @@
 import pandas as pd
+import pickle as pkl
 import yaml
 import urllib
 import json
 from pathlib import Path
 
-apiPath = Path(__file__).parents[1] / 'API'
-dataPath = Path(__file__).parents[1] / 'Data'
-conPath = Path(__file__).parents[1] / 'Concordances'
+apiPath = Path(__file__).parent / 'API'
+dataPath = Path(__file__).parent / 'Data'
+conPath = Path(__file__).parent / 'Concordances'
   
     
     
@@ -18,17 +19,22 @@ r = ['Canada', 'China', 'Europe', 'Japan', 'Mexico',
 ri_df = pd.DataFrame()
 for region in r:
     r_path = f_n.replace('__region__',region)
-    df = pd.read_csv(dataPath / r_path,skiprows=3, index_col=(0)).drop(
-        ['IOCode']).drop(['Commodities/Industries'], axis=1)
+    df = (pd.read_csv(dataPath / r_path, skiprows=3, index_col=(0))
+             .drop(['IOCode'])
+             .drop(['Commodities/Industries'], axis=1)
+             )
     df = df.apply(pd.to_numeric)
     df[region] = df[list(df.columns)].sum(axis=1)
     df = df.reset_index(inplace=False)
-    ri_r = df[['IOCode',region]]
+    ri_r = df[['IOCode', region]]
     if ri_df.empty:
         ri_df = ri_r
     else:
-        ri_df = pd.merge(ri_df, ri_r, how='outer',on='IOCode')
+        ri_df = pd.merge(ri_df, ri_r, how='outer', on='IOCode')
     ri_df = ri_df.iloc[:-3]
+
+pkl.dump(ri_df, open(dataPath/'ri_df.pkl', 'wb'))
+
     
 
 #%%

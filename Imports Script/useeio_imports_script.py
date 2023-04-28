@@ -31,7 +31,8 @@ t_r_i_us = Import quantities, by Exiobase sector and USEEIO detail or summary
 c_d = Contribution coefficient matrix
 e_d = Exiobase emission factors per unit currency
 '''
-dataPath = Path(__file__).parent
+dataPath = Path(__file__).parent / 'Data'
+conPath = Path(__file__).parent / 'Concordances'
 
 
 def run_script():
@@ -39,23 +40,37 @@ def run_script():
     Runs through script to produce emission factors for U.S. imports.
     '''
     
-    path = dataPath/'regional_imports_df.pkl'
+    path = dataPath/'ri_df.pkl'
     if path.is_file():
         t_df = pd.read_pickle(path)
     else:
         t_df = get_tiva_data()
-        pkl.dump(t_df,open(dataPath/'ri_df.pkl', 'wb'))
+        #TODO ^^ update to point to new source
+        pkl.dump(t_df, open(dataPath/'ri_df.pkl', 'wb'))
 
     t_c = calc_tiva_coefficients(t_df)
-    t_e = get_tiva_to_exio()
-    e_u = get_exio_to_useeio()
-    u_c = get_detail_to_summary_useeio()
-    r_i = get_subregion_imports() # TODO Substitute with BEA and Census trade data
-    p_d = dataframe_preparation(t_e, r_i, e_u, u_c)
+
+    t_e = get_tiva_to_exio_concordance()
+    e_u = get_exio_to_useeio_concordance()
+    u_c = get_detail_to_summary_useeio_concordance()
+    r_i = get_subregion_imports()
+    # TODO ^^ Substitute with BEA and Census trade data
+
+
+    t_r_i = (t_e.merge(r_i, on='region', how='outer')
+                .rename(columns={'region':'Country',
+                                 'sector':'Exiobase Sector'}))
+    t_r_i_u = t_r_i.merge(e_u, on='Exiobase Sector', how='left')
+    t_r_i_us = t_r_i_u.merge(u_c, on='BEA Detail', how='left')
+    p_d = (t_r_i_us[['TiVA Region','Country','Exiobase Sector','BEA Detail',
+                     'BEA Summary','indout']])
+    # TODO WARNING ^^ this is creating some duplicates where an exiobase sector
+    # maps to multiple detail sectors but still a single summary sector
+
     c_d = calc_contribution_coefficients(p_d)
     e_d = pull_exiobase_multipliers()
-    multiplier_df = (c_d.merge(e_d, how='left',on=['Country',
-                                                   'Exiobase Sector']))
+    multiplier_df = (c_d.merge(e_d, how='left',
+                               on=['Country', 'Exiobase Sector']))
     weighted_multipliers_bea, weighted_multipliers_exio = (
         calculate_specific_emission_factors(multiplier_df))
     weighted_multipliers_exiobase = (
@@ -71,9 +86,10 @@ def run_script():
     
     return (p_d, imports_multipliers, weighted_multipliers_bea, 
             weighted_multipliers_exio)
-    
-    
-def get_tiva_data(year='2020'): #Use BEA API to import
+
+
+# TODO update this to use the API to obtain updated import data
+def get_tiva_data(year='2020'):
     '''
     Iteratively pulls BEA imports data matricies from source URL, extracts 
     the BEA NAICS and Total Imports columns, and consolidates all imports
@@ -123,15 +139,16 @@ def download_and_store_mrio():
     '''
     If MRIO object not already present in directory, downloads MRIO object.
     '''
-    #TODO Explore autodownload
-    
-    # exio3 = pymrio.download_exiobase3(storage_folder=dataPath,system='pxp', 
-    #                                 years=[2022])
-    e = pymrio.parse_exiobase3('IOT_2022_pxp.zip')
+    file = dataPath / 'IOT_2022_pxp.zip'
+    if not file.exists():
+        exio3 = pymrio.download_exiobase3(storage_folder=dataPath,
+                                          system='pxp',
+                                          years=[2022])
+    e = pymrio.parse_exiobase3(file)
     exio_m = e.impacts.M
     exio_indout = e.x                                                       
-    pkl.dump(exio_indout, open(dataPath/'exio3_indout.pkl', 'wb'))
-    pkl.dump(exio_m, open(dataPath/'exio3_multipliers.pkl', 'wb'))
+    pkl.dump(exio_indout, open(dataPath / 'exio3_indout.pkl', 'wb'))
+    pkl.dump(exio_m, open(dataPath / 'exio3_multipliers.pkl', 'wb'))
 
 
 def remove_exports(dataframe):
@@ -143,55 +160,46 @@ def remove_exports(dataframe):
     return dataframe
 
 
-def get_tiva_to_exio():
+def get_tiva_to_exio_concordance():
     '''
     Opens concordance dataframe of TiVA regions to exiobase countries.
     '''
-    path = dataPath/'exio_tiva_concordance.csv'
-    t_e = (pd.read_csv(path).rename(columns={'ISO 3166-alpha-2': 'region'}))
+    path = conPath / 'exio_tiva_concordance.csv'
+    t_e = (pd.read_csv(path)
+             .rename(columns={'ISO 3166-alpha-2': 'region'}))
     t_e = t_e[["TiVA Region","region"]]
     return t_e
 
 
-def get_exio_to_useeio():
+def get_exio_to_useeio_concordance():
     '''
     Opens Exiobase to USEEIO binary concordance.
-    '''
-    path = dataPath/"exio_to_bea_commodity_concordance.csv"
-    e_u_b = (pd.read_csv(path, dtype=str)
-                              .rename(columns={'Unnamed: 0':'BEA Detail'}))
-    e_u = process_exio_to_useeio_concordance(
-        e_u_b)
-    return e_u
-
-
-def process_exio_to_useeio_concordance(e_u_b):
-    '''
     Transforms wide-form Exiobase to USEEIO concordance into long form, 
     extracts all mappings to create new, two column concordance consisting of 
     USEEIO detail and mappings to Exiobase.
     '''
+    path = conPath / "exio_to_bea_commodity_concordance.csv"
+    e_u_b = (pd.read_csv(path, dtype=str)
+               .rename(columns={'Unnamed: 0':'BEA Detail'}))
     e_u_b = e_u_b.iloc[:,:-4]
-    e_u_l = pd.melt(e_u_b,id_vars=['BEA Detail'])
-    e_u = (e_u_l.loc[e_u_l['value'] == '1']
-                                   .rename(columns={'variable':
-                                                    'Exiobase Sector'})
-                                   .reset_index(drop=True))
+    e_u_l = pd.melt(e_u_b, id_vars=['BEA Detail'], var_name='Exiobase Sector')
+    e_u = (e_u_l.query('value == "1"')
+                .reset_index(drop=True))
     e_u = (e_u[['BEA Detail','Exiobase Sector']])
     return e_u
 
 
-def get_detail_to_summary_useeio():
+def get_detail_to_summary_useeio_concordance():
     '''
     Opens crosswalk between BEA (summary & detail) and USEEIO (with and 
     without waste disaggregation) sectors. USEEIO Detail with Waste Disagg 
     and corresponding summary-level codes. 
     '''
-    path = dataPath/'useeio_internal_concordance.csv'
-    u_cc = (pd.read_csv(path, dtype=str).rename(columns={
-                                    'BEA_Detail_Waste_Disagg': 'BEA Detail',
-                                    'BEA_Summary': 'BEA Summary'})
-                                    )
+    path = conPath / 'useeio_internal_concordance.csv'
+    u_cc = (pd.read_csv(path, dtype=str)
+              .rename(columns={'BEA_Detail_Waste_Disagg': 'BEA Detail',
+                               'BEA_Summary': 'BEA Summary'})
+              )
     u_c = u_cc[['BEA Detail','BEA Summary']]
     u_c = u_c.drop_duplicates()
     return u_c
@@ -201,6 +209,10 @@ def get_subregion_imports(): #TO-DO: Reconstruct using census and BEA data
     '''
     Extracts industry output vector from exiobase pkl file.
     '''
+    file = dataPath/'exio3_indout.pkl'
+    if not file.exists():
+        download_and_store_mrio()
+
     exio_indout = pkl.load(open(dataPath/'exio3_indout.pkl','rb'))
     # exio_indout = (exio_indout.rename(columns={'region':'TiVA Region'})
     #                .reset_index())
@@ -210,39 +222,31 @@ def get_subregion_imports(): #TO-DO: Reconstruct using census and BEA data
 def pull_exiobase_multipliers():
     # Extracts multiplier matrix from stored Exiobase model.
     
-    with open(dataPath/"multipliers_renaming.yml", "r") as file:
+    with open(dataPath.parent / "Test" /"multipliers_renaming.yml", "r") as file:
         renamed_categories = yaml.safe_load(file)
-    exiobase_multipliers_df = pkl.load(
-        open(dataPath/'exio3_multipliers.pkl','rb'))
-    exiobase_emissions_multipliers_df = exiobase_multipliers_df.loc[
-        exiobase_multipliers_df.index.isin(renamed_categories.keys())]
-    exiobase_emissions_multipliers_df = (exiobase_emissions_multipliers_df
-        .transpose().reset_index()
-        .rename(columns=renamed_categories))
-    return exiobase_emissions_multipliers_df
+
+    file = dataPath/'exio3_multipliers.pkl'
+    if not file.exists():
+        download_and_store_mrio()
+    M_df = pkl.load(open(file,'rb'))
+
+    M_df = M_df.loc[M_df.index.isin(renamed_categories.keys())]
+    M_df = (M_df
+            .transpose()
+            .reset_index()
+            .rename(columns=renamed_categories))
+    return M_df
 
 
-def dataframe_preparation(t_e, r_i, e_u, u_c):
-    # Combines TiVA to Exio concordance, Exio to USEEIO concordance, Exio 
-    # industry outputs, and USEEIO detail to USEEIO summary concordance. 
-    # Resultant dataframe has columns ordered TiVA Region, Exiobase Country, 
-    # Exiobase commodity, USEEIO detail, USEEIO summary, industry output. 
-    
-    t_r_i = (t_e.merge(r_i, on='region', how='outer')
-             .rename(columns={'region':'Country','sector':'Exiobase Sector'}))
-    t_r_i_u = t_r_i.merge(e_u, on='Exiobase Sector', how='left')
-    t_r_i_us = (t_r_i_u.merge(u_c, on='BEA Detail', how='left'))
-    p_d = (t_r_i_us[['TiVA Region','Country','Exiobase Sector','BEA Detail',
-                     'BEA Summary','indout']])
-    return p_d
-
-
-def calc_contribution_coefficients(df):
+def calc_contribution_coefficients(p_d):
     # Appends contribution coefficients to prepared dataframe.
     
-    df = calc_coefficients_tiva(df)
+    df = calc_coefficients_tiva(p_d)
     df = calc_coefficients_useeio(df)
-    df = clean_coefficient_dataframe(df)
+
+    df = df[['TiVA Region','Country','Exiobase Sector','BEA Detail',
+         'BEA Summary','TiVA_indout_subtotal','BEA_indout_subtotal',
+         'region_contributions_TiVA','region_contributions_BEA']]
     return df
 
 
@@ -254,12 +258,13 @@ def calc_coefficients_tiva(df):
     # Exiobase country's industry outputs are divided by their corresponding
     # TiVA_indout_subtotals to create the fractional contribution coefficients.
 
-    df['TiVA_indout_subtotal'] = (
-        df[['TiVA Region','Exiobase Sector','indout']]
-        .groupby(['TiVA Region','Exiobase Sector']).transform('sum')
-        )
-    df['region_contributions_TiVA'] = (
-        df['indout']/df['TiVA_indout_subtotal'])
+    df = (df
+          .assign(TiVA_indout_subtotal =
+                  df.groupby(['TiVA Region', 'Exiobase Sector'])
+                  ['indout'].transform('sum'))
+          .assign(region_contributions_TiVA =
+                  df['indout']/df['TiVA_indout_subtotal'])
+          )
     return df
 
 
@@ -276,19 +281,14 @@ def calc_coefficients_useeio(df):
     # USEEIO_indout_subtotals to create the fractional contribution 
     # coefficients to each USEEIO category. 
     
-    df['BEA_indout_subtotal'] = (
-        df[['TiVA Region','BEA Summary','indout']]
-        .groupby(['TiVA Region','BEA Summary']).transform('sum'))
-    df['region_contributions_BEA'] = (
-        df['indout']/df[('BEA_indout_subtotal')])
-    return df
+    df = (df
+          .assign(BEA_indout_subtotal =
+                  df.groupby(['TiVA Region', 'BEA Summary'])
+                  ['indout'].transform('sum'))
+          .assign(region_contributions_BEA =
+                  df['indout']/df['BEA_indout_subtotal'])
+          )
 
-
-def clean_coefficient_dataframe(df):
-    # Removes unnecessary columns for final emission factor calculation
-    df = df[['TiVA Region','Country','Exiobase Sector','BEA Detail',
-         'BEA Summary','TiVA_indout_subtotal','BEA_indout_subtotal',
-         'region_contributions_TiVA','region_contributions_BEA']]
     return df
 
 
@@ -296,50 +296,28 @@ def calculate_specific_emission_factors(multiplier_df):
     # Calculates TiVA-exiobase sector and TiVA-bea summary sector emission
     # multipliers.
     
-    multiplier_df['(Weighted_exio) Carbon Dioxide (CO2)'] = (
-        multiplier_df['Carbon Dioxide (CO2)']
-        *multiplier_df['region_contributions_TiVA']
-        )
-    multiplier_df['(Weighted_exio) Methane (CH4)'] = (
-        multiplier_df['Methane (CH4)']
-        *multiplier_df['region_contributions_TiVA']
-        )
-    multiplier_df['(Weighted_exio) Nitrous Oxide (N2O)'] = (
-        multiplier_df['Nitrous Oxide (N2O)']
-        *multiplier_df['region_contributions_TiVA']
-        )
-    multiplier_df['(Weighted_BEA) Carbon Dioxide (CO2)'] = (
-        multiplier_df['Carbon Dioxide (CO2)']
-        *multiplier_df['region_contributions_BEA']
-        )
-    multiplier_df['(Weighted_BEA) Methane (CH4)'] = (
-        multiplier_df['Methane (CH4)']
-        *multiplier_df['region_contributions_BEA']
-        )
-    multiplier_df['(Weighted_BEA) Nitrous Oxide (N2O)'] = (
-        multiplier_df['Nitrous Oxide (N2O)']
-        *multiplier_df['region_contributions_BEA']
-        )
-    tiva_exio_multiplier_df = multiplier_df[
-        ['TiVA Region','Exiobase Sector',
-         '(Weighted_exio) Carbon Dioxide (CO2)',
-         '(Weighted_exio) Methane (CH4)',
-         '(Weighted_exio) Nitrous Oxide (N2O)']]
-    tiva_bea_multiplier_df = multiplier_df[
-        ['TiVA Region','BEA Summary',
-         '(Weighted_BEA) Carbon Dioxide (CO2)',
-         '(Weighted_BEA) Methane (CH4)',
-         '(Weighted_BEA) Nitrous Oxide (N2O)']]
-    weighted_multipliers_bea = (tiva_bea_multiplier_df
-        .groupby(['TiVA Region','BEA Summary'])
-        .agg({'(Weighted_BEA) Carbon Dioxide (CO2)': 'sum', 
-              '(Weighted_BEA) Methane (CH4)': 'sum',
-              '(Weighted_BEA) Nitrous Oxide (N2O)': 'sum'}).reset_index())
-    weighted_multipliers_exio = (tiva_exio_multiplier_df
+    flows = ['Carbon Dioxide (CO2)',
+             'Methane (CH4)',
+             'Nitrous Oxide (N2O)']
+    #TODO ^^ replace with names in metadata file
+
+    multiplier_df = multiplier_df.melt(
+        id_vars = [c for c in multiplier_df if c not in flows],
+        var_name = 'Flow',
+        value_name = 'EF')
+    multiplier_df = (multiplier_df
+                     .assign(Weighted_exio = (multiplier_df['EF'] *
+                             multiplier_df['region_contributions_TiVA']))
+                     .assign(Weighted_BEA = (multiplier_df['EF'] *
+                             multiplier_df['region_contributions_BEA']))
+                     )
+
+    weighted_multipliers_bea = (multiplier_df
+        .groupby(['TiVA Region','BEA Summary', 'Flow'])
+        .agg({'Weighted_BEA': 'sum'}).reset_index())
+    weighted_multipliers_exio = (multiplier_df
         .groupby(['TiVA Region','Exiobase Sector'])
-        .agg({'(Weighted_exio) Carbon Dioxide (CO2)': 'sum', 
-              '(Weighted_exio) Methane (CH4)': 'sum',
-              '(Weighted_exio) Nitrous Oxide (N2O)': 'sum'}).reset_index())
+        .agg({'Weighted_exio': 'sum'}).reset_index())
     return(weighted_multipliers_bea, weighted_multipliers_exio)
 
 
@@ -429,10 +407,11 @@ def calculateWeightedEFsImportsData(weighted_multipliers_exiobase,
     
     return imports_multipliers
 
+#%%
+if __name__ == '__main__':
+    (prepared_dataframe, imports_multipliers,
+     weighted_multipliers_bea, weighted_multipliers_exio) = run_script()
 
-(prepared_dataframe, imports_multipliers, 
- weighted_multipliers_bea, weighted_multipliers_exio) = run_script()
-
-imports_multipliers.to_csv('imports_multipliers.csv', index=False)
-weighted_multipliers_bea.to_csv('weighted_multipliers_bea.csv', index=False)
-weighted_multipliers_exio.to_csv('weighted_multipliers_exio.csv', index=False)
+    imports_multipliers.to_csv('imports_multipliers.csv', index=False)
+    weighted_multipliers_bea.to_csv('weighted_multipliers_bea.csv', index=False)
+    weighted_multipliers_exio.to_csv('weighted_multipliers_exio.csv', index=False)
