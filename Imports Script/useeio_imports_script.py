@@ -34,19 +34,14 @@ e_d = Exiobase emission factors per unit currency
 dataPath = Path(__file__).parent / 'Data'
 conPath = Path(__file__).parent / 'Concordances'
 
+#%%
 
 def run_script():
     '''
     Runs through script to produce emission factors for U.S. imports.
     '''
     
-    path = dataPath/'ri_df.pkl'
-    if path.is_file():
-        t_df = pd.read_pickle(path)
-    else:
-        t_df = get_tiva_data()
-        #TODO ^^ update to point to new source
-        pkl.dump(t_df, open(dataPath/'ri_df.pkl', 'wb'))
+    t_df = get_tiva_data()
 
     t_c = calc_tiva_coefficients(t_df)
 
@@ -89,36 +84,36 @@ def run_script():
 
 
 # TODO update this to use the API to obtain updated import data
+# TODO reflect the year of the data in the csv file
 def get_tiva_data(year='2020'):
     '''
-    Iteratively pulls BEA imports data matricies from source URL, extracts 
-    the BEA NAICS and Total Imports columns, and consolidates all imports
-    stats into one dataframe. 
+    Iteratively pulls BEA imports data matricies from stored csv file,
+    extracts the Total Imports columns by geion, and consolidates 
+    into one dataframe. 
     '''
-    imports_data_url_stem = ('https://www.bea.gov/system/files/2021-12/Import'
-                             '%20Matrix%20')
-    bea_to_tiva_dict = {'ROW': 'ROW',
-                        'Canada': 'CA',
-                        'Mexico': 'MX',
-                        'China': 'CN',
-                        'Europe': 'EU'} # key: Imports Region, value: TiVA Region 
-    rows_to_skip=[0,1,2,3,4,5,6,8] # rows within the data sheets to omit
-    ri_df = pd.DataFrame() # empty dataframe to replace/populate
-    for region, abbv in bea_to_tiva_dict.items():
-        partner_url = f'{imports_data_url_stem}{region}.xlsx'
-        partnerDF = (pd.read_excel(partner_url, sheet_name=year, 
-                                   skiprows=rows_to_skip, index_col=0)
-                     .rename(columns={'Unnamed: 0': 'Industry/Commodity Code:',
-                                      'F050': abbv}))
-        extracted_imports_column = partnerDF[abbv]
+
+    f_n = 'Import Matrix, __region__, After Redefinitions.csv'
+    r = ['Canada', 'China', 'Europe', 'Japan', 'Mexico', 
+         'Rest of Asia and Pacific', 'Rest of World']
+    ri_df = pd.DataFrame()
+    for region in r:
+        r_path = f_n.replace('__region__', region)
+        df = (pd.read_csv(dataPath / r_path, skiprows=3, index_col=0)
+                 .drop(['IOCode'])
+                 .drop(['Commodities/Industries'], axis=1)
+                 .dropna()
+                 .apply(pd.to_numeric)
+                 )
+        df[region] = df[list(df.columns)].sum(axis=1)
+        df = df.reset_index(inplace=False)
+        ri_r = df[['IOCode', region]]
         if ri_df.empty:
-            # dataframe to populate doesn't exist, becomes dataframe
-            ri_df = extracted_imports_column
+            ri_df = ri_r
         else:
-            # dataframe exists, new columns added
-            ri_df = pd.concat(
-                [ri_df, extracted_imports_column], axis=1)
-    ri_df = remove_exports(ri_df)
+            ri_df = pd.merge(ri_df, ri_r, how='outer', on='IOCode')
+        ri_df = ri_df.iloc[:-3]
+    ri_df = ri_df.set_index('IOCode')
+
     return ri_df
 
 
