@@ -59,8 +59,12 @@ def run_script(io_level='Summary'):
                   .rename(columns={'BEA Summary': 'BEA'})
                   .drop_duplicates()
                   )
-    else:
+        t_c = t_c.rename(columns={'BEA Summary': 'BEA'})
+    else: # Detail
+        print('ERROR: not yet implemented')
         e_u = e_u.rename(columns={'BEA Detail': 'BEA'})
+        ## TODO adjust t_c
+
 
     t_r_i_u = t_r_i.merge(e_u, on='Exiobase Sector', how='left')
 
@@ -92,11 +96,11 @@ def run_script(io_level='Summary'):
 
     imports_multipliers = (
         imports_multipliers
-        .rename(columns={'Weighted_Imports': 'Amount'})
+        .rename(columns={'Weighted_Import_EF': 'Amount'})
         .assign(Unit='kg / Euro')
         .assign(CurrencyYear='2021')
-        .assign(DataYear='2021')
-        .assign(PriceType='Basic')
+        .assign(DataYear='2021') # Emissions year
+        .assign(PriceType='Producer')
         )
     
     #TODO Currency adjustment
@@ -296,9 +300,9 @@ def calc_contribution_coefficients(p_d):
     df = calc_coefficients_tiva(p_d)
     df = calc_coefficients_useeio(df)
 
-    df = df[['TiVA Region','Country','Exiobase Sector','BEA Detail',
-         'BEA Summary','TiVA_indout_subtotal','BEA_indout_subtotal',
-         'region_contributions_TiVA','region_contributions_BEA']]
+    df = df[['TiVA Region','Country','Exiobase Sector','BEA',
+             'TiVA_indout_subtotal','BEA_indout_subtotal',
+             'region_contributions_TiVA','region_contributions_BEA']]
     return df
 
 
@@ -332,7 +336,7 @@ def calc_coefficients_useeio(df):
     # coefficients to each USEEIO category. 
     
     df = df.assign(BEA_indout_subtotal =
-                   df.groupby(['TiVA Region', 'BEA Summary'])
+                   df.groupby(['TiVA Region', 'BEA'])
                    ['indout'].transform('sum'))
     df = df.assign(region_contributions_BEA =
                    df['indout']/df['BEA_indout_subtotal'])
@@ -352,7 +356,7 @@ def calculate_specific_emission_factors(multiplier_df):
                      )
 
     weighted_multipliers_bea = (multiplier_df
-        .groupby(['TiVA Region','BEA Summary', 'Flow'])
+        .groupby(['TiVA Region','BEA', 'Flow'])
         .agg({'Weighted_BEA': 'sum'}).reset_index())
     weighted_multipliers_exio = (multiplier_df
         .groupby(['TiVA Region','Exiobase Sector', 'Flow'])
@@ -379,7 +383,7 @@ def calculate_emission_factors(multiplier_df):
                      )
 
     weighted_multipliers_exiobase = (multiplier_df
-        .groupby(['TiVA Region','Exiobase Sector','BEA Summary', 'Flow'])
+        .groupby(['TiVA Region','Exiobase Sector','BEA', 'Flow'])
         .agg({'Weighted_TiVA_BEA': 'sum'}).reset_index()
         )
     return weighted_multipliers_exiobase
@@ -398,22 +402,22 @@ def calculateWeightedEFsImportsData(weighted_multipliers_exiobase,
     
     weighted_df_imports = (
         weighted_multipliers_exiobase
-        .merge(import_contribution_coeffs, how='left',
-               on=['TiVA Region','BEA Summary'])
+        .merge(import_contribution_coeffs, how='left', validate='m:1',
+               on=['TiVA Region','BEA'])
         .assign(region_contributions_imports=lambda x:
                 x['region_contributions_imports'].fillna(0))
             )
 
     weighted_df_imports = (
-        weighted_df_imports.assign(Weighted_Imports=lambda x:
+        weighted_df_imports.assign(Weighted_Import_EF=lambda x:
                                    x['Weighted_TiVA_BEA'] * 
                                    x['region_contributions_imports'])
         )
 
     imports_multipliers = (
         weighted_df_imports
-        .groupby(['BEA Summary', 'Flow'])
-        .agg({'Weighted_Imports': 'sum'})
+        .groupby(['BEA', 'Flow'])
+        .agg({'Weighted_Import_EF': 'sum'})
         .reset_index()
         )
 
@@ -425,5 +429,5 @@ if __name__ == '__main__':
      weighted_multipliers_bea, weighted_multipliers_exio) = run_script()
 
     imports_multipliers.to_csv('imports_multipliers.csv', index=False)
-    weighted_multipliers_bea.to_csv('weighted_multipliers_bea.csv', index=False)
-    weighted_multipliers_exio.to_csv('weighted_multipliers_exio.csv', index=False)
+    # weighted_multipliers_bea.to_csv('weighted_multipliers_bea.csv', index=False)
+    # weighted_multipliers_exio.to_csv('weighted_multipliers_exio.csv', index=False)
