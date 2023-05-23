@@ -2,6 +2,9 @@ import pandas as pd
 import pymrio
 import pickle as pkl
 import yaml
+import statistics
+from currency_converter import CurrencyConverter
+from datetime import date
 from pathlib import Path
 
 ''' 
@@ -38,12 +41,12 @@ with open(dataPath.parent / "Data" / "exio_config.yml", "r") as file:
     config = yaml.safe_load(file)
 
 
-def run_script(io_level='Summary'):
+def run_script(io_level='Summary', year=2021):
     '''
     Runs through script to produce emission factors for U.S. imports.
     '''
     
-    t_df = get_tiva_data()
+    t_df = get_tiva_data(year=year)
 
     t_c = calc_tiva_coefficients(t_df)
 
@@ -99,13 +102,21 @@ def run_script(io_level='Summary'):
         # .assign(Compartment='air')
         .rename(columns={'Weighted_Import_EF': 'Amount'})
         .assign(Unit='kg / Euro')
-        .assign(CurrencyYear='2021')
-        .assign(DataYear='2021') # Emissions year
+        .assign(CurrencyYear=str(year))
+        .assign(DataYear=str(year)) # Emissions year
         .assign(PriceType='Producer')
         )
     
-    #TODO Currency adjustment
-    
+    # Currency adjustment
+    c = CurrencyConverter(fallback_on_missing_rate=True)
+    exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
+                            c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
+    imports_multipliers = (
+        imports_multipliers
+        .assign(Amount=lambda x: x['Amount']/exch)
+        .assign(Unit='kg / USD')
+        )
+
     #TODO Pricetype adjustment
     
     #TODO Flow Mapping
