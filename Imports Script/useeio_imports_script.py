@@ -24,10 +24,8 @@ r_i = imports, by NAICS category, from countries aggregated in
 p_d = dataframe prepared for final factor calculation
 t_r_i = Import quantities, by Exiobase sector, mapped to TiVA-mapped Exiobase
         countries
-t_r_i_u = Import quantities, by Exiobase sector and USEEIO detail sector,
+t_r_i_u = Import quantities, by Exiobase sector and BEA sector,
           mapped to TiVA-mapped Exiobase countries
-t_r_i_us = Import quantities, by Exiobase sector and USEEIO detail or summary 
-           sector, mapped to TiVA-mapped Exiobase countries
 c_d = Contribution coefficient matrix
 e_d = Exiobase emission factors per unit currency
 '''
@@ -36,7 +34,7 @@ conPath = Path(__file__).parent / 'Concordances'
 
 #%%
 
-def run_script():
+def run_script(io_level='Summary'):
     '''
     Runs through script to produce emission factors for U.S. imports.
     '''
@@ -47,18 +45,26 @@ def run_script():
 
     t_e = get_tiva_to_exio_concordance()
     e_u = get_exio_to_useeio_concordance()
-    u_c = get_detail_to_summary_useeio_concordance()
     r_i = get_subregion_imports()
     # TODO ^^ Substitute with BEA and Census trade data
 
-
-    t_r_i = (t_e.merge(r_i, on='region', how='outer')
+    t_r_i = (r_i.merge(t_e, on='region', how='left', validate='m:1')
                 .rename(columns={'region':'Country',
                                  'sector':'Exiobase Sector'}))
+
+    if io_level == 'Summary':
+        u_c = get_detail_to_summary_useeio_concordance()
+        e_u = (e_u.merge(u_c, how='left', on='BEA Detail', validate='m:1')
+                  .drop(columns=['BEA Detail'])
+                  .rename(columns={'BEA Summary': 'BEA'})
+                  .drop_duplicates()
+                  )
+    else:
+        e_u = e_u.rename(columns={'BEA Detail': 'BEA'})
+
     t_r_i_u = t_r_i.merge(e_u, on='Exiobase Sector', how='left')
-    t_r_i_us = t_r_i_u.merge(u_c, on='BEA Detail', how='left')
-    p_d = (t_r_i_us[['TiVA Region','Country','Exiobase Sector','BEA Detail',
-                     'BEA Summary','indout']])
+
+    p_d = t_r_i_u.copy()
     # TODO WARNING ^^ this is creating some duplicates where an exiobase sector
     # maps to multiple detail sectors but still a single summary sector
 
@@ -106,8 +112,10 @@ def run_script():
 def get_tiva_data(year='2020'):
     '''
     Iteratively pulls BEA imports data matricies from stored csv file,
-    extracts the Total Imports columns by geion, and consolidates 
+    extracts the Total Imports columns by region, and consolidates 
     into one dataframe. 
+    
+    https://apps.bea.gov/iTable/?reqid=157&step=1
     '''
 
     f_n = 'Import Matrix, __region__, After Redefinitions.csv'
@@ -143,9 +151,8 @@ def get_tiva_data(year='2020'):
 
 def calc_tiva_coefficients(t_df):
     '''
-    Calculate the fractional contributions, by TiVA region used in BEA 
-    imports data, to total imports by USEEIO-summary sector. Resulting 
-    dataframe is long format. 
+    Calculate the fractional contributions, by TiVA region, to total imports
+    by BEA-summary sector. Resulting dataframe is long format. 
     '''
     corr = (pd.read_csv(conPath / 'bea_imports_corr.csv',
                         usecols=['BEA Imports', 'BEA Summary'])
@@ -156,16 +163,20 @@ def calc_tiva_coefficients(t_df):
     t_c = (t_df
            .reset_index()
            .rename(columns={'IOCode': 'BEA Imports'})
-           .merge(corr, on='BEA Imports')
+           .merge(corr, on='BEA Imports', how='left', validate='one_to_many')
            .groupby('BEA Summary').agg('sum')
            )
 
     t_c = (t_c.div(t_c.sum(axis=1), axis=0).fillna(0)
-              .reset_index()
-              .rename(columns={'index': 'BEA Imports'})
-              .melt(id_vars=['BEA Summary'], var_name='TiVA Region',
-                    value_name='region_contributions_imports')
-               )
+              .reset_index())
+
+    if not round(t_c.drop(columns='BEA Summary')
+                    .sum(axis=1),5).isin([0,1]).all():
+        print('WARNING: error calculating import shares.')
+
+    t_c = t_c.melt(id_vars=['BEA Summary'], var_name='TiVA Region',
+                   value_name='region_contributions_imports')
+
     return t_c
 
 
