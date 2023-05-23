@@ -34,6 +34,10 @@ conPath = Path(__file__).parent / 'Concordances'
 
 #%%
 
+with open(dataPath.parent / "Data" / "exio_config.yml", "r") as file:
+    config = yaml.safe_load(file)
+
+
 def run_script(io_level='Summary'):
     '''
     Runs through script to produce emission factors for U.S. imports.
@@ -77,13 +81,9 @@ def run_script(io_level='Summary'):
     multiplier_df = c_d.merge(e_d, how='left',
                               on=['Country', 'Exiobase Sector'])
 
-    flows = ['Carbon Dioxide (CO2)',
-             'Methane (CH4)',
-             'Nitrous Oxide (N2O)']
-    #TODO ^^ replace with names in metadata file
-
     multiplier_df = multiplier_df.melt(
-        id_vars = [c for c in multiplier_df if c not in flows],
+        id_vars = [c for c in multiplier_df if c not in 
+                   config['flows'].values()],
         var_name = 'Flow',
         value_name = 'EF')
 
@@ -96,6 +96,7 @@ def run_script(io_level='Summary'):
 
     imports_multipliers = (
         imports_multipliers
+        # .assign(Compartment='air')
         .rename(columns={'Weighted_Import_EF': 'Amount'})
         .assign(Unit='kg / Euro')
         .assign(CurrencyYear='2021')
@@ -105,7 +106,9 @@ def run_script(io_level='Summary'):
     
     #TODO Currency adjustment
     
-    #TODO Price adjustment
+    #TODO Pricetype adjustment
+    
+    #TODO Flow Mapping
     
     return (p_d, imports_multipliers, weighted_multipliers_bea, 
             weighted_multipliers_exio)
@@ -271,19 +274,18 @@ def get_subregion_imports(): #TO-DO: Reconstruct using census and BEA data
 def pull_exiobase_multipliers():
     # Extracts multiplier matrix from stored Exiobase model.
     
-    with open(dataPath.parent / "Test" / "multipliers_renaming.yml", "r") as file:
-        renamed_categories = yaml.safe_load(file)
-
     file = dataPath/'exio3_multipliers.pkl'
     if not file.exists():
         download_and_store_mrio()
     M_df = pkl.load(open(file,'rb'))
 
-    M_df = M_df.loc[M_df.index.isin(renamed_categories.keys())]
+    fields = {**config['fields'], **config['flows']}
+
+    M_df = M_df.loc[M_df.index.isin(fields.keys())]
     M_df = (M_df
             .transpose()
             .reset_index()
-            .rename(columns=renamed_categories)
+            .rename(columns=fields)
             # .melt(value_vars = [c for c in renamed_categories.values() if c not
             #                 in ['Exiobase Sector', 'Country']],
             #       id_vars = ['Exiobase Sector', 'Country'],

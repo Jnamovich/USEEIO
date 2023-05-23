@@ -1,5 +1,7 @@
+fields:
     region: Country
     sector: Exiobase Sector
+flows:
     Carbon dioxide (CO2) IPCC categories 1 to 4 and 6 to 7 (excl land use, land use change and forestry): Carbon Dioxide (CO2)
     Methane (CH4) IPCC categories 1 to 4 and 6 to 7 (excl land use, land use change and forestry): Methane (CH4)
     Nitrous Oxide (N2O) IPCC categories 1 to 4 and 6 to 7 (excl land use, land use change and forestry): Nitrous Oxide (N2O)
