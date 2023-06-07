@@ -13,5 +13,7 @@ url:
     COMM_LVL: NA6
     CTY_CODE: __areaorcountry__
     YEAR: __year__
+    MONTH: "12"
 years:
+- 2019
 - 2020

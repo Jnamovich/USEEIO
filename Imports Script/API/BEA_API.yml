@@ -6,15 +6,16 @@ api_name: BEA
 api_key_required: true
 format: [json,xml]
 url:
-    base_url: https://apps.bea.gov/api/data/?
-    url_params:
-        UserID: 5667308B-A4FA-4ECB-9F18-DC0D61A97B1B
-        Affiliation: AllAffiliations
-        method: GetData
-        DataSetName: IntlServTrade
-        TradeDirection: Imports
-        ResultFormat: json
-        AreaOrCounty: __areaorcountry__
-        Year: __year__
+  base_url: https://apps.bea.gov/api/data/?
+  url_params:
+    UserID: 5667308B-A4FA-4ECB-9F18-DC0D61A97B1B
+    Affiliation: AllAffiliations
+    method: GetData
+    DataSetName: IntlServTrade
+    TradeDirection: Imports
+    ResultFormat: json
+    AreaOrCountry: __areaorcountry__
+    Year: __year__
 years:
-- 2021
+- 2019
+- 2020
