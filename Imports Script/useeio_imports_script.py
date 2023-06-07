@@ -3,9 +3,14 @@ import pymrio
 import pickle as pkl
 import yaml
 import statistics
+<<<<<<< HEAD
+#from currency_converter import CurrencyConverter
+=======
 from currency_converter import CurrencyConverter
+>>>>>>> 54f89aa4d9f03f448e0138d7e4776dfdf5416eb2
 from datetime import date
 from pathlib import Path
+from API_NewTiVA_Additions import 
 
 ''' 
 VARIABLES:
@@ -108,6 +113,16 @@ def run_script(io_level='Summary', year=2021):
         )
     
     # Currency adjustment
+<<<<<<< HEAD
+    # c = CurrencyConverter(fallback_on_missing_rate=True)
+    # exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
+    #                         c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
+    # imports_multipliers = (
+    #     imports_multipliers
+    #     .assign(Amount=lambda x: x['Amount']/exch)
+    #     .assign(Unit='kg / USD')
+    #     )
+=======
     c = CurrencyConverter(fallback_on_missing_rate=True)
     exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
                             c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
@@ -116,6 +131,7 @@ def run_script(io_level='Summary', year=2021):
         .assign(Amount=lambda x: x['Amount']/exch)
         .assign(Unit='kg / USD')
         )
+>>>>>>> 54f89aa4d9f03f448e0138d7e4776dfdf5416eb2
 
     #TODO Pricetype adjustment
     
