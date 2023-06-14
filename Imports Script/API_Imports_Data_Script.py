@@ -168,12 +168,13 @@ def get_census_df(d, c_d):
                     )
             df = pd.concat([df, cols], axis=1)
     df = df.replace(np.nan, 0).reset_index()
+    ## Merge in BEA Codes and flatten
     c_b = pd.read_csv(apiPath / 'Census_API_Mappings.csv')
     df = df.merge(c_b, how='left', on='NAICS')
     df = (df.drop(columns='NAICS')
             .groupby('BEA Sector').agg(sum)
             .reset_index()
-            .melt(id_vars=['BEA Sector'], var_name='Country',
+            .melt(id_vars=['BEA Sector'], var_name='CountryCode',
                   value_name='Import Quantity')
             .assign(Unit='USD')
             .assign(Source='Census')
@@ -204,6 +205,7 @@ def get_bea_df(d, b_d):
           .replace(np.nan,0)
           .reset_index()
           .rename(columns={'index':'BEA Service'}))
+    ## Merge in BEA codes and flatten
     b_b = (pd.read_csv(apiPath / 'BEA_API_Mappings.csv')
            .filter(['API BEA Service', 'BEA Sector'])
            .rename(columns={'API BEA Service': 'BEA Service'})
@@ -214,14 +216,14 @@ def get_bea_df(d, b_d):
           )
     if(len(df['BEA Sector'].unique()) != len(df)):
         raise ValueError("Duplicate BEA sectors")
-    df = df.melt(id_vars=['BEA Sector'], var_name='Country',
-                 value_name='Import Quantity')
+    df = (df.melt(id_vars=['BEA Sector'],
+                  var_name='CountryCode',
+                  value_name='Import Quantity')
+            .assign(Unit='USD')
+            .assign(Source='BEA')
+            # .assign(Year='')
+            )
     df['Import Quantity'] = df['Import Quantity'].apply(lambda x: x*1000000)
-    df = (df
-          .assign(Unit='USD')
-          .assign(Source='BEA')
-          # .assign(Year='')
-          )
     return df
 
 def get_imports_data(request_data):
@@ -242,6 +244,7 @@ def get_imports_data(request_data):
     b_df = get_bea_df(b_responses, b_d)
     c_df = get_census_df(c_responses, c_d)
     i_df = pd.concat([c_df, b_df], ignore_index=True, axis=0)
+    i_df['Country'] = i_df['CountryCode'].map(b_d)
     return(i_df)
 
 id_f = get_imports_data(request_data=request_data)
