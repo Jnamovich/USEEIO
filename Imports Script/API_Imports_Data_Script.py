@@ -148,30 +148,26 @@ def get_census_df(d, c_d):
     Creates a dataframe for Census response data for a given year.
     '''
     df = pd.DataFrame()
+    country_code = {v:k for k,v in c_d.items()}
     for a,b in d.items():
         for k,v in b.items():
             v_d = v['data']
-            cty = v['cty']
-            for e,f in c_d.items():
-                if cty == f:
-                    cty = e
-                else:
-                    pass
+            cty = country_code.get(v['cty'])
             value_df = (pd.DataFrame(data=v_d[1:], columns=v_d[0])
-                        .drop_duplicates())
+                        # .drop_duplicates()
+                        ## TODO why are duplicates dropped?
+                        )
+
             cols = value_df[['NAICS','GEN_CIF_YR']]
-            cols['GEN_CIF_YR_Val'] = (cols['GEN_CIF_YR'].astype(float)
-                                      .astype(int))
-            cols = cols.drop(columns='GEN_CIF_YR')
-            cols = cols.rename(columns={'GEN_CIF_YR_Val':cty})
-            if df.empty:
-                df = cols
-            else:
-                df = pd.merge(df,cols,how='outer',on='NAICS')
-                df = df.drop_duplicates()
-    df = df.replace(np.nan, 0)
-    df = df.set_index(df.columns[0]).reset_index()
-    ## TODO ^^ what does this do?
+            cols = (cols
+                    .assign(GEN_CIF_YR = lambda x: (x['GEN_CIF_YR']
+                                                    .astype(float)
+                                                    .astype(int)))
+                    .rename(columns={'GEN_CIF_YR':cty})
+                    .set_index('NAICS')
+                    )
+            df = pd.concat([df, cols], axis=1)
+    df = df.replace(np.nan, 0).reset_index()
     c_b = pd.read_csv(apiPath / 'Census_API_Mappings.csv')
     df = df.merge(c_b, how='left', on='NAICS')
     df = (df.drop(columns='NAICS')
