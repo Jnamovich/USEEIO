@@ -153,11 +153,7 @@ def get_census_df(d, c_d):
         for k,v in b.items():
             v_d = v['data']
             cty = country_code.get(v['cty'])
-            value_df = (pd.DataFrame(data=v_d[1:], columns=v_d[0])
-                        # .drop_duplicates()
-                        ## TODO why are duplicates dropped?
-                        )
-
+            value_df = pd.DataFrame(data=v_d[1:], columns=v_d[0])
             cols = value_df[['NAICS','GEN_CIF_YR']]
             cols = (cols
                     .assign(GEN_CIF_YR = lambda x: (x['GEN_CIF_YR']
