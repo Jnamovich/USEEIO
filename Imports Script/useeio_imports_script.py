@@ -3,15 +3,11 @@ import pymrio
 import pickle as pkl
 import yaml
 import statistics
-<<<<<<< HEAD
 #from currency_converter import CurrencyConverter
-=======
-from currency_converter import CurrencyConverter
->>>>>>> 54f89aa4d9f03f448e0138d7e4776dfdf5416eb2
 from datetime import date
 from pathlib import Path
-from API_NewTiVA_Additions import 
-
+from API_Imports_Data_Script import get_imports_data
+#%%
 ''' 
 VARIABLES:
 path = data path, set to parent directory
@@ -37,6 +33,8 @@ t_r_i_u = Import quantities, by Exiobase sector and BEA sector,
 c_d = Contribution coefficient matrix
 e_d = Exiobase emission factors per unit currency
 '''
+
+#%%
 dataPath = Path(__file__).parent / 'Data'
 conPath = Path(__file__).parent / 'Concordances'
 
@@ -52,49 +50,40 @@ def run_script(io_level='Summary', year=2021):
     '''
     
     t_df = get_tiva_data(year=year)
-
     t_c = calc_tiva_coefficients(t_df)
-
     t_e = get_tiva_to_exio_concordance()
     e_u = get_exio_to_useeio_concordance()
-    r_i = get_subregion_imports()
-    # TODO ^^ Substitute with BEA and Census trade data
-
-    t_r_i = (r_i.merge(t_e, on='region', how='left', validate='m:1')
-                .rename(columns={'region':'Country',
-                                 'sector':'Exiobase Sector'}))
+    sr_i = get_subregion_imports()
 
     if io_level == 'Summary':
         u_c = get_detail_to_summary_useeio_concordance()
-        e_u = (e_u.merge(u_c, how='left', on='BEA Detail', validate='m:1')
-                  .drop(columns=['BEA Detail'])
-                  .rename(columns={'BEA Summary': 'BEA'})
+        sr_i = (sr_i.merge(u_c, how='left', on='BEA Detail', validate='m:1')
                   .drop_duplicates()
                   )
         t_c = t_c.rename(columns={'BEA Summary': 'BEA'})
     else: # Detail
         print('ERROR: not yet implemented')
-        e_u = e_u.rename(columns={'BEA Detail': 'BEA'})
+        sr_i = sr_i.rename(columns={'BEA Detail': 'BEA'})
         ## TODO adjust t_c
 
 
-    t_r_i_u = t_r_i.merge(e_u, on='Exiobase Sector', how='left')
+    #t_r_i_u = sr_i.merge(e_u, on='BEA Detail', how='left')
 
-    p_d = t_r_i_u.copy()
+    p_d = sr_i.copy()
+    p_d = p_d[['TiVA Region','Country','BEA Summary','BEA Detail','Import Quantity']]
     # TODO WARNING ^^ this is creating some duplicates where an exiobase sector
     # maps to multiple detail sectors but still a single summary sector
-
     c_d = calc_contribution_coefficients(p_d)
+    c_de = c_d.merge(e_u, on='BEA Detail', how='left')
     e_d = pull_exiobase_multipliers()
-    multiplier_df = c_d.merge(e_d, how='left',
+    
+    multiplier_df = c_de.merge(e_d, how='left',
                               on=['Country', 'Exiobase Sector'])
-
     multiplier_df = multiplier_df.melt(
         id_vars = [c for c in multiplier_df if c not in 
                    config['flows'].values()],
         var_name = 'Flow',
         value_name = 'EF')
-
     weighted_multipliers_bea, weighted_multipliers_exio = (
         calculate_specific_emission_factors(multiplier_df))
     weighted_multipliers_exiobase = (
@@ -113,7 +102,6 @@ def run_script(io_level='Summary', year=2021):
         )
     
     # Currency adjustment
-<<<<<<< HEAD
     # c = CurrencyConverter(fallback_on_missing_rate=True)
     # exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
     #                         c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
@@ -122,26 +110,13 @@ def run_script(io_level='Summary', year=2021):
     #     .assign(Amount=lambda x: x['Amount']/exch)
     #     .assign(Unit='kg / USD')
     #     )
-=======
-    c = CurrencyConverter(fallback_on_missing_rate=True)
-    exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
-                            c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
-    imports_multipliers = (
-        imports_multipliers
-        .assign(Amount=lambda x: x['Amount']/exch)
-        .assign(Unit='kg / USD')
-        )
->>>>>>> 54f89aa4d9f03f448e0138d7e4776dfdf5416eb2
-
     #TODO Pricetype adjustment
-    
     #TODO Flow Mapping
     
     return (p_d, imports_multipliers, weighted_multipliers_bea, 
             weighted_multipliers_exio)
 
 
-# TODO update this to use the API to obtain updated import data
 # TODO reflect the year of the data in the csv file
 def get_tiva_data(year='2020'):
     '''
@@ -224,9 +199,7 @@ def download_and_store_mrio():
                                           system='pxp',
                                           years=[2022])
     e = pymrio.parse_exiobase3(file)
-    exio_m = e.impacts.M
-    exio_indout = e.x                                                       
-    pkl.dump(exio_indout, open(dataPath / 'exio3_indout.pkl', 'wb'))
+    exio_m = e.impacts.M                                                   
     pkl.dump(exio_m, open(dataPath / 'exio3_multipliers.pkl', 'wb'))
 
 
@@ -245,8 +218,8 @@ def get_tiva_to_exio_concordance():
     '''
     path = conPath / 'exio_tiva_concordance.csv'
     t_e = (pd.read_csv(path)
-             .rename(columns={'ISO 3166-alpha-2': 'region'}))
-    t_e = t_e[["TiVA Region","region"]]
+             .rename(columns={'ISO 3166-alpha-2': 'Country'}))
+    t_e = t_e[["TiVA Region","Country"]]
     return t_e
 
 
@@ -288,18 +261,22 @@ def get_subregion_imports(): #TO-DO: Reconstruct using census and BEA data
     '''
     Extracts industry output vector from exiobase pkl file.
     '''
-    file = dataPath/'exio3_indout.pkl'
-    if not file.exists():
-        download_and_store_mrio()
-
-    exio_indout = pkl.load(open(dataPath/'exio3_indout.pkl','rb'))
-    # exio_indout = (exio_indout.rename(columns={'region':'TiVA Region'})
-    #                .reset_index())
-    return exio_indout.reset_index()
+    sr_i = get_imports_data(True)
+    path = conPath / 'exio_tiva_concordance.csv'
+    regions = (pd.read_csv(path, dtype=str, usecols=['ISO 3166-alpha-2',
+                                                     'TiVA Region'])
+                              .rename(columns={'ISO 3166-alpha-2': 'Country'}))
+    sr_i = (sr_i.merge(regions, on='Country', how='left')
+            .rename(columns={'BEA Sector':'BEA Detail'}))
+    # sr_i['Subregion Contribution'] = sr_i['Import Quantity']/sr_i.groupby('BEA Sector')['Import Quantity'].transform('sum')
+    # sr_i = sr_i.fillna(0).drop(columns={'Import Quantity'}).rename(columns={'BEA Sector':'BEA Detail'})
+    return sr_i
 
 
 def pull_exiobase_multipliers():
-    # Extracts multiplier matrix from stored Exiobase model.
+    '''
+    Extracts multiplier matrix from stored Exiobase model.
+    '''
     
     file = dataPath/'exio3_multipliers.pkl'
     if not file.exists():
@@ -319,63 +296,69 @@ def pull_exiobase_multipliers():
             #       var_name = 'Flow',
             #       value_name = 'EF')
             )
-
     return M_df
 
 
 def calc_contribution_coefficients(p_d):
-    # Appends contribution coefficients to prepared dataframe.
+    '''
+    Appends contribution coefficients to prepared dataframe.
+    '''
     
     df = calc_coefficients_tiva(p_d)
-    df = calc_coefficients_useeio(df)
+    df = calc_coefficients_bea(df)
 
-    df = df[['TiVA Region','Country','Exiobase Sector','BEA',
-             'TiVA_indout_subtotal','BEA_indout_subtotal',
+    df = df[['TiVA Region','Country','BEA_Summary','BEA Detail',
+             'TiVA_import_subtotal','BEA_import_subtotal',
              'region_contributions_TiVA','region_contributions_BEA']]
     return df
 
 
 def calc_coefficients_tiva(df):
-    # Calculate the fractional contributions, by sector, of each Exiobase 
-    # country to the TiVA region they are assigned. This creates 2 new columns:
-    # 1) 'TiVA_indout_subtotal, where industry outputs are summed according to
-    #TiVA-sector pairings; 2) 'region_contributions_TiVA, where each 
-    # Exiobase country's industry outputs are divided by their corresponding
-    # TiVA_indout_subtotals to create the fractional contribution coefficients.
-
-    df = df.assign(TiVA_indout_subtotal =
-                   df.groupby(['TiVA Region', 'Exiobase Sector'])
-                   ['indout'].transform('sum'))
-    df = df.assign(region_contributions_TiVA =
-                   df['indout']/df['TiVA_indout_subtotal'])
+    '''
+    Calculate the fractional contributions, by sector, of each Exiobase 
+    country to the TiVA region they are assigned. This creates 2 new columns:
+    1) 'TiVA_indout_subtotal, where industry outputs are summed according to
+    TiVA-sector pairings; 2) 'region_contributions_TiVA, where each 
+    Exiobase country's industry outputs are divided by their corresponding
+    TiVA_indout_subtotals to create the fractional contribution coefficients.
+    '''
+    
+    df['Subregion Contribution to Summary'] = (df['Import Quantity']/
+                                               df.groupby(['Country',
+                                                           'BEA Summary'])
+                                               ['Import Quantity']
+                                               .transform('sum'))
     return df
 
 
-def calc_coefficients_useeio(df):
-    # Calculate the fractional contributions, by sector, of each Exiobase 
-    # country to their corresponding USEEIO summary-level sector(s). These
-    # concordances were based on Exiobase sector --> USEEIO Detail-level 
-    # sector, and USEEIO detail-level sector --> USEEIO summary-level sector
-    # mappins. The function creates 2 new columns: 1) 'USEEIO_indout_subtotal, 
-    # where industry outputs are summed according to
-    # TiVA-Exiobase sector-USEEIO summary sector combinations; 
-    # 2) 'regional_contributions_USEEIO, where each 
-    # Exiobase country's industry outputs are divided by their corresponding
-    # USEEIO_indout_subtotals to create the fractional contribution 
-    # coefficients to each USEEIO category. 
+def calc_coefficients_bea(df):
+    '''
+    Calculate the fractional contributions, by sector, of each Exiobase 
+    country to their corresponding USEEIO summary-level sector(s). These
+    concordances were based on Exiobase sector --> USEEIO Detail-level 
+    sector, and USEEIO detail-level sector --> USEEIO summary-level sector
+    mappins. The function creates 2 new columns: 1) 'USEEIO_indout_subtotal, 
+    where industry outputs are summed according to
+    TiVA-Exiobase sector-USEEIO summary sector combinations; 
+    2) 'regional_contributions_USEEIO, where each 
+    Exiobase country's industry outputs are divided by their corresponding
+    USEEIO_indout_subtotals to create the fractional contribution 
+    coefficients to each USEEIO category. 
+    '''
     
-    df = df.assign(BEA_indout_subtotal =
-                   df.groupby(['TiVA Region', 'BEA'])
-                   ['indout'].transform('sum'))
-    df = df.assign(region_contributions_BEA =
-                   df['indout']/df['BEA_indout_subtotal'])
-
+    df['Subregion Contribution to Detail'] = (df['Import Quantity']/
+                                              df.groupby(['Country',
+                                                          'BEA Detail'])
+                                              ['Import Quantity']
+                                              .transform('sum'))
     return df
 
 
 def calculate_specific_emission_factors(multiplier_df):
-    # Calculates TiVA-exiobase sector and TiVA-bea summary sector emission
-    # multipliers.
+    '''
+    Calculates TiVA-exiobase sector and TiVA-bea summary sector emission
+    multipliers.
+    '''
     
     multiplier_df = (multiplier_df
                      .assign(Weighted_exio = (multiplier_df['EF'] *
@@ -394,16 +377,18 @@ def calculate_specific_emission_factors(multiplier_df):
 
 
 def calculate_emission_factors(multiplier_df):
-    # Merges emission multipliers on country and exiobase sector. Each gas 
-    # multiplier is multiplied by both the TiVA and USEEIO contribution 
-    # coefficients to produce multipliers for each Exiobase country-sector 
-    # and gas combination. These are stored in new 'Weighted (insert 
-    # multiplier category)' columns. Subsequently, unnecessary columns, such as 
-    # unweighted gas multipliers and used contribution factors, are dropped 
-    # from the dataframe. Other than weighted burden columns, the output 
-    # dataframe also continues to include 'TiVA Region', 'Exiobase Sector', 
-    # and 'USEEIO Summary'.
- 
+    '''
+    Merges emission multipliers on country and exiobase sector. Each gas 
+    multiplier is multiplied by both the TiVA and USEEIO contribution 
+    coefficients to produce multipliers for each Exiobase country-sector 
+    and gas combination. These are stored in new 'Weighted (insert 
+    multiplier category)' columns. Subsequently, unnecessary columns, such as 
+    unweighted gas multipliers and used contribution factors, are dropped 
+    from the dataframe. Other than weighted burden columns, the output 
+    dataframe also continues to include 'TiVA Region', 'Exiobase Sector', 
+    and 'USEEIO Summary'.
+    '''
+    
     multiplier_df = (multiplier_df
                      .assign(Weighted_TiVA_BEA = (multiplier_df['EF'] *
                              multiplier_df['region_contributions_TiVA'] *
@@ -420,14 +405,16 @@ def calculate_emission_factors(multiplier_df):
 
 def calculateWeightedEFsImportsData(weighted_multipliers_exiobase,
                                     import_contribution_coeffs):
-    # Merges import contribution coefficients with weighted exiobase 
-    # multiplier dataframe. Import coefficients are then multiplied by the 
-    # weighted exiobase multipliers to produce weighted multipliers that 
-    # incorporate imports data. These are stored in new 'Weighted-Imports 
-    # (insert multiplier category)' columns. Subsequently, unnecessary columns, 
-    # such as unweighted Exiobase multipliers and used contribution factors, 
-    # are dropped from the dataframe. Other than weighted burden columns, the 
-    # output dataframe only continues to include 'USEEIO Summary' codes.
+    '''
+    Merges import contribution coefficients with weighted exiobase 
+    multiplier dataframe. Import coefficients are then multiplied by the 
+    weighted exiobase multipliers to produce weighted multipliers that 
+    incorporate imports data. These are stored in new 'Weighted-Imports 
+    (insert multiplier category)' columns. Subsequently, unnecessary columns, 
+    such as unweighted Exiobase multipliers and used contribution factors, 
+    are dropped from the dataframe. Other than weighted burden columns, the 
+    output dataframe only continues to include 'USEEIO Summary' codes.
+    '''
     
     weighted_df_imports = (
         weighted_multipliers_exiobase
@@ -451,6 +438,7 @@ def calculateWeightedEFsImportsData(weighted_multipliers_exiobase,
         )
 
     return imports_multipliers
+
 
 #%%
 if __name__ == '__main__':
