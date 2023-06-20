@@ -70,11 +70,14 @@ def run_script(io_level='Summary', year=2021):
     #t_r_i_u = sr_i.merge(e_u, on='BEA Detail', how='left')
 
     p_d = sr_i.copy()
-    p_d = p_d[['TiVA Region','Country','BEA Summary','BEA Detail','Import Quantity']]
+    p_d = p_d[['TiVA Region','CountryCode','BEA Summary','BEA Detail','Import Quantity']]
     # TODO WARNING ^^ this is creating some duplicates where an exiobase sector
     # maps to multiple detail sectors but still a single summary sector
     c_d = calc_contribution_coefficients(p_d)
     c_de = c_d.merge(e_u, on='BEA Detail', how='left')
+    c_de = c_de[['TiVA Region','CountryCode','BEA Summary','BEA Detail',
+                 'Exiobase Sector','Subregion Contribution to Summary',
+                 'Subregion Contribution to Detail']]
     e_d = pull_exiobase_multipliers()
     
     multiplier_df = c_de.merge(e_d, how='left',
@@ -261,12 +264,13 @@ def get_subregion_imports(): #TO-DO: Reconstruct using census and BEA data
     '''
     Extracts industry output vector from exiobase pkl file.
     '''
-    sr_i = get_imports_data(True)
+    sr_i = get_imports_data(False)
+    sr_i = sr_i[['BEA Sector','CountryCode','Import Quantity']]
     path = conPath / 'exio_tiva_concordance.csv'
     regions = (pd.read_csv(path, dtype=str, usecols=['ISO 3166-alpha-2',
                                                      'TiVA Region'])
-                              .rename(columns={'ISO 3166-alpha-2': 'Country'}))
-    sr_i = (sr_i.merge(regions, on='Country', how='left')
+                              .rename(columns={'ISO 3166-alpha-2': 'CountryCode'}))
+    sr_i = (sr_i.merge(regions, on='CountryCode', how='left')
             .rename(columns={'BEA Sector':'BEA Detail'}))
     # sr_i['Subregion Contribution'] = sr_i['Import Quantity']/sr_i.groupby('BEA Sector')['Import Quantity'].transform('sum')
     # sr_i = sr_i.fillna(0).drop(columns={'Import Quantity'}).rename(columns={'BEA Sector':'BEA Detail'})
@@ -307,9 +311,9 @@ def calc_contribution_coefficients(p_d):
     df = calc_coefficients_tiva(p_d)
     df = calc_coefficients_bea(df)
 
-    df = df[['TiVA Region','Country','BEA_Summary','BEA Detail',
-             'TiVA_import_subtotal','BEA_import_subtotal',
-             'region_contributions_TiVA','region_contributions_BEA']]
+    df = df[['TiVA Region','CountryCode','BEA Summary','BEA Detail',
+             'Subregion Contribution to Summary',
+             'Subregion Contribution to Detail']]
     return df
 
 
@@ -324,7 +328,7 @@ def calc_coefficients_tiva(df):
     '''
     
     df['Subregion Contribution to Summary'] = (df['Import Quantity']/
-                                               df.groupby(['Country',
+                                               df.groupby(['TiVA Region',
                                                            'BEA Summary'])
                                                ['Import Quantity']
                                                .transform('sum'))
@@ -347,7 +351,7 @@ def calc_coefficients_bea(df):
     '''
     
     df['Subregion Contribution to Detail'] = (df['Import Quantity']/
-                                              df.groupby(['Country',
+                                              df.groupby(['TiVA Region',
                                                           'BEA Detail'])
                                               ['Import Quantity']
                                               .transform('sum'))
