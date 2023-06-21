@@ -396,7 +396,7 @@ def calculate_emission_factors(multiplier_df):
     
     multiplier_df = (multiplier_df
                      .assign(Weighted_TiVA_BEA = (multiplier_df['EF'] *
-                             multiplier_df['Subregion Contribution to Detail'] *
+                             # multiplier_df['Subregion Contribution to Detail'] *
                              multiplier_df['Subregion Contribution to Summary'])
                              )
                      )
