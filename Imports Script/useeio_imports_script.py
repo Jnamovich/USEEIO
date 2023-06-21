@@ -111,9 +111,13 @@ def run_script(io_level='Summary', year=2021):
     #     .assign(Amount=lambda x: x['Amount']/exch)
     #     .assign(Unit='kg / USD')
     #     )
+
+
     #TODO Pricetype adjustment
+
+
     #TODO Flow Mapping
-    
+
     return (p_d, imports_multipliers, weighted_multipliers_bea_detail, 
             weighted_multipliers_bea_summary)
 
