@@ -86,13 +86,11 @@ def run_script(io_level='Summary', year=2021):
 
     weighted_multipliers_bea_detail, weighted_multipliers_bea_summary = (
         calculate_specific_emission_factors(multiplier_df))
-    weighted_multipliers_all = (
-        calculate_emission_factors(multiplier_df))
 
     # Aggregate by TiVa Region
     t_c = calc_tiva_coefficients(year)
     imports_multipliers = (calculateWeightedEFsImportsData(
-        weighted_multipliers_all, t_c))
+        weighted_multipliers_bea_summary, t_c))
 
     imports_multipliers = (
         imports_multipliers
@@ -117,7 +115,7 @@ def run_script(io_level='Summary', year=2021):
     #TODO Flow Mapping
     
     return (p_d, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary,weighted_multipliers_all)
+            weighted_multipliers_bea_summary)
 
 
 # TODO reflect the year of the data in the csv file
@@ -381,33 +379,6 @@ def calculate_specific_emission_factors(multiplier_df):
     return(weighted_multipliers_bea_detail, weighted_multipliers_bea_summary)
 
 
-def calculate_emission_factors(multiplier_df):
-    '''
-    Merges emission multipliers on country and exiobase sector. Each gas 
-    multiplier is multiplied by both the TiVA and USEEIO contribution 
-    coefficients to produce multipliers for each Exiobase country-sector 
-    and gas combination. These are stored in new 'Weighted (insert 
-    multiplier category)' columns. Subsequently, unnecessary columns, such as 
-    unweighted gas multipliers and used contribution factors, are dropped 
-    from the dataframe. Other than weighted burden columns, the output 
-    dataframe also continues to include 'TiVA Region', 'Exiobase Sector', 
-    and 'USEEIO Summary'.
-    '''
-    
-    multiplier_df = (multiplier_df
-                     .assign(Weighted_TiVA_BEA = (multiplier_df['EF'] *
-                             # multiplier_df['Subregion Contribution to Detail'] *
-                             multiplier_df['Subregion Contribution to Summary'])
-                             )
-                     )
-
-    weighted_multipliers_exiobase = (multiplier_df
-        .groupby(['TiVA Region','BEA Summary', 'Flow'])
-        .agg({'Weighted_TiVA_BEA': 'sum'}).reset_index()
-        )
-    return weighted_multipliers_exiobase
-
-
 def calculateWeightedEFsImportsData(weighted_multipliers,
                                     import_contribution_coeffs):
     '''
@@ -431,7 +402,7 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
     weighted_df_imports = (
         weighted_df_imports.assign(Weighted_Import_EF=lambda x:
-                                   x['Weighted_TiVA_BEA'] * 
+                                   x['Weighted_BEA_Summary'] *
                                    x['region_contributions_imports'])
         )
 
@@ -448,8 +419,6 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 #%%
 if __name__ == '__main__':
     (prepared_dataframe, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary,weighted_multipliers_all) = run_script()
+            weighted_multipliers_bea_summary) = run_script()
 
     imports_multipliers.to_csv('imports_multipliers.csv', index=False)
-    # weighted_multipliers_bea.to_csv('weighted_multipliers_bea.csv', index=False)
-    # weighted_multipliers_exio.to_csv('weighted_multipliers_exio.csv', index=False)
