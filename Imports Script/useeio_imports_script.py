@@ -48,49 +48,49 @@ def run_script(io_level='Summary', year=2021):
     '''
     Runs through script to produce emission factors for U.S. imports.
     '''
-    
-    t_df = get_tiva_data(year=year)
-    t_c = calc_tiva_coefficients(t_df)
-    t_e = get_tiva_to_exio_concordance()
-    e_u = get_exio_to_useeio_concordance()
+    # Country imports by detail sector
     sr_i = get_subregion_imports()
 
     if io_level == 'Summary':
         u_c = get_detail_to_summary_useeio_concordance()
-        sr_i = (sr_i.merge(u_c, how='left', on='BEA Detail', validate='m:1')
-                  .drop_duplicates()
-                  )
-        t_c = t_c.rename(columns={'BEA Summary': 'BEA Summary'})
+        sr_i = (sr_i.merge(u_c, how='left', on='BEA Detail', validate='m:1'))
+
     else: # Detail
         print('ERROR: not yet implemented')
         sr_i = sr_i.rename(columns={'BEA Detail': 'BEA'})
-        ## TODO adjust t_c
-
-
-    #t_r_i_u = sr_i.merge(e_u, on='BEA Detail', how='left')
 
     p_d = sr_i.copy()
-    p_d = p_d[['TiVA Region','CountryCode','BEA Summary','BEA Detail','Import Quantity']]
-    # TODO WARNING ^^ this is creating some duplicates where an exiobase sector
-    # maps to multiple detail sectors but still a single summary sector
+    p_d = p_d[['TiVA Region', 'CountryCode', 'BEA Summary',
+               'BEA Detail', 'Import Quantity']]
     c_d = calc_contribution_coefficients(p_d)
-    c_de = c_d.merge(e_u, on='BEA Detail', how='left')
-    c_de = c_de[['TiVA Region','CountryCode','BEA Summary','BEA Detail',
-                 'Exiobase Sector','Subregion Contribution to Summary',
-                 'Subregion Contribution to Detail']]
+    if sum(c_d.duplicated(['CountryCode', 'BEA Detail'])) > 0:
+        print('Error calculating country coefficients by detail sector')
+
+    e_u = get_exio_to_useeio_concordance()
     e_d = pull_exiobase_multipliers()
+    e_d = (e_d.merge(e_u, on='Exiobase Sector', how='left')
+              .groupby(['BEA Detail', 'CountryCode'])
+              .agg('mean')
+              .reset_index()
+              )
+    # ^^ This is a simplification. When multiple exiobase sectors can be used
+    # for a single detail sector, this takes the average EF of those sectors. 
     
-    multiplier_df = c_de.merge(e_d, how='left',
-                              on=['CountryCode', 'Exiobase Sector'])
+    multiplier_df = c_d.merge(e_d, how='left',
+                              on=['CountryCode', 'BEA Detail'])
     multiplier_df = multiplier_df.melt(
         id_vars = [c for c in multiplier_df if c not in 
                    config['flows'].values()],
         var_name = 'Flow',
         value_name = 'EF')
+
     weighted_multipliers_bea_detail, weighted_multipliers_bea_summary = (
         calculate_specific_emission_factors(multiplier_df))
     weighted_multipliers_all = (
         calculate_emission_factors(multiplier_df))
+
+    # Aggregate by TiVa Region
+    t_c = calc_tiva_coefficients(year)
     imports_multipliers = (calculateWeightedEFsImportsData(
         weighted_multipliers_all, t_c))
 
@@ -161,11 +161,12 @@ def get_tiva_data(year='2020'):
     return ri_df
 
 
-def calc_tiva_coefficients(t_df):
+def calc_tiva_coefficients(year):
     '''
     Calculate the fractional contributions, by TiVA region, to total imports
     by BEA-summary sector. Resulting dataframe is long format. 
     '''
+    t_df = get_tiva_data(year)
     corr = (pd.read_csv(conPath / 'bea_imports_corr.csv',
                         usecols=['BEA Imports', 'BEA Summary'])
             .drop_duplicates())
