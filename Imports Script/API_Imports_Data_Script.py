@@ -10,8 +10,6 @@ apiPath = Path(__file__).parent / 'API'
 dataPath = Path(__file__).parent / 'Data'
 conPath = Path(__file__).parent / 'Concordances'
   
-data_years = ['2020']
-
 request_data = False #0 for no, 1 for yes
     
 #%%
@@ -222,7 +220,7 @@ def get_bea_df(d, b_d):
     df['Import Quantity'] = df['Import Quantity'].apply(lambda x: x*1000000)
     return df
 
-def get_imports_data(request_data):
+def get_imports_data(request_data, data_years=['2020']):
     '''
     A function to call from other scripts.
     '''
