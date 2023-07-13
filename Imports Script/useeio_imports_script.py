@@ -130,7 +130,7 @@ def run_script(io_level='Summary', year=2021):
         .assign(Unit='kg / USD')
         )
 
-    return (p_d, imports_multipliers, weighted_multipliers_bea_detail, 
+    return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
             weighted_multipliers_bea_summary)
 
 
@@ -280,11 +280,11 @@ def get_subregion_imports(year):
     Generates dataset of imports by country by sector from BEA and Census
     '''
     sr_i = get_imports_data(False, data_years=[year])
-    sr_i = sr_i[['BEA Sector','CountryCode','Import Quantity']]
     path = conPath / 'exio_tiva_concordance.csv'
-    regions = (pd.read_csv(path, dtype=str, usecols=['ISO 3166-alpha-2',
-                                                     'TiVA Region'])
-                              .rename(columns={'ISO 3166-alpha-2': 'CountryCode'}))
+    regions = (pd.read_csv(path, dtype=str,
+                           usecols=['ISO 3166-alpha-2', 'TiVA Region'])
+               .rename(columns={'ISO 3166-alpha-2': 'CountryCode'})
+               )
     sr_i = (sr_i.merge(regions, on='CountryCode', how='left')
             .rename(columns={'BEA Sector':'BEA Detail'}))
     # sr_i['Subregion Contribution'] = sr_i['Import Quantity']/sr_i.groupby('BEA Sector')['Import Quantity'].transform('sum')
@@ -437,7 +437,7 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
 #%%
 if __name__ == '__main__':
-    (prepared_dataframe, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary) = run_script()
+    (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
+            weighted_multipliers_bea_summary) = run_script(year=2021)
 
     imports_multipliers.to_csv('imports_multipliers.csv', index=False)

@@ -3,7 +3,6 @@ import pickle as pkl
 import yaml
 import numpy as np
 import requests
-import json
 from pathlib import Path
 
 apiPath = Path(__file__).parent / 'API'
@@ -141,14 +140,14 @@ def make_reqs(file, reqs, data_years):
     print('Successfully Collected All',file,'Requests')
     return d
 
-def get_census_df(d, c_d):
+def get_census_df(d, c_d, data_years):
     '''
     Creates a dataframe for Census response data for a given year.
     '''
     df = pd.DataFrame()
     country_code = {v:k for k,v in c_d.items()}
-    for a,b in d.items():
-        for k,v in b.items():
+    for year in data_years:
+        for k, v in d[year].items():
             v_d = v['data']
             cty = country_code.get(v['cty'])
             value_df = pd.DataFrame(data=v_d[1:], columns=v_d[0])
@@ -161,29 +160,34 @@ def get_census_df(d, c_d):
                     .set_index('NAICS')
                     )
             df = pd.concat([df, cols], axis=1)
+        df = df.assign(Year=year)
     df = df.replace(np.nan, 0).reset_index()
     ## Merge in BEA Codes and flatten
     c_b = pd.read_csv(apiPath / 'Census_API_Mappings.csv')
     df = df.merge(c_b, how='left', on='NAICS')
     df = (df.drop(columns='NAICS')
-            .groupby('BEA Sector').agg(sum)
+            .groupby(['BEA Sector', 'Year']).agg(sum)
             .reset_index()
-            .melt(id_vars=['BEA Sector'], var_name='CountryCode',
+            .melt(id_vars=['BEA Sector', 'Year'], var_name='CountryCode',
                   value_name='Import Quantity')
             .assign(Unit='USD')
             .assign(Source='Census')
-            # .assign(Year='')
             )
     return df
 
-def get_bea_df(d, b_d):
+def get_bea_df(d, b_d, data_years):
     '''
     Creates a dataframe for BEA response data for a given year.
     '''
     e_t_d = {v:k for k,v in b_d.items()}
     n_d = {}
-    for a,b in d.items():
-        for k,v in b.items():
+    df_all = pd.DataFrame()
+    b_b = (pd.read_csv(apiPath / 'BEA_API_Mappings.csv')
+           .filter(['API BEA Service', 'BEA Sector'])
+           .rename(columns={'API BEA Service': 'BEA Service'})
+           )
+    for year in data_years:
+        for k, v in d[year].items():
             cty = v['cty']
             cty = e_t_d[cty]
             d_n = {}
@@ -193,37 +197,38 @@ def get_bea_df(d, b_d):
                 value = item['DataValue']
                 d_n[sector] = value
             n_d[cty] = d_n
-    df = (pd.DataFrame(n_d)
-          .apply(pd.to_numeric)
-          .dropna(how='all')
-          .replace(np.nan,0)
-          .reset_index()
-          .rename(columns={'index':'BEA Service'}))
-    ## Merge in BEA codes and flatten
-    b_b = (pd.read_csv(apiPath / 'BEA_API_Mappings.csv')
-           .filter(['API BEA Service', 'BEA Sector'])
-           .rename(columns={'API BEA Service': 'BEA Service'})
-           )
-    df = (df.merge(b_b, how='right', on='BEA Service', validate='1:m')
-          .fillna(0)
-          .drop(columns='BEA Service')
-          )
-    if(len(df['BEA Sector'].unique()) != len(df)):
-        raise ValueError("Duplicate BEA sectors")
-    df = (df.melt(id_vars=['BEA Sector'],
-                  var_name='CountryCode',
-                  value_name='Import Quantity')
-            .assign(Unit='USD')
-            .assign(Source='BEA')
-            # .assign(Year='')
-            )
-    df['Import Quantity'] = df['Import Quantity'].apply(lambda x: x*1000000)
-    return df
+        df = (pd.DataFrame(n_d)
+              .apply(pd.to_numeric)
+              .dropna(how='all')
+              .replace(np.nan,0)
+              .reset_index()
+              .rename(columns={'index':'BEA Service'})
+              )
+        ## Merge in BEA codes and flatten
+        df = (df.merge(b_b, how='right', on='BEA Service', validate='1:m')
+              .fillna(0)
+              .drop(columns='BEA Service')
+              )
+        if(len(df['BEA Sector'].unique()) != len(df)):
+            raise ValueError("Duplicate BEA sectors")
+        df = (df.melt(id_vars=['BEA Sector'],
+                      var_name='CountryCode',
+                      value_name='Import Quantity')
+                .assign(Unit='USD')
+                .assign(Source='BEA')
+                .assign(Year=year)
+                )
+        df['Import Quantity'] = df['Import Quantity'].apply(lambda x: x*1000000)
+        df_all = pd.concat([df_all, df], ignore_index=True)
+    return df_all
 
 def get_imports_data(request_data, data_years=['2020']):
     '''
     A function to call from other scripts.
     '''
+    # TODO Update data call with more years, until then set as 2020
+    data_years=['2020']
+
     b_d, c_d = get_country_schema()
     if request_data == True:    
         b_reqs = create_Reqs('BEA_API.yml', b_d)
@@ -232,13 +237,14 @@ def get_imports_data(request_data, data_years=['2020']):
         pkl.dump(b_resp, open(dataPath / 'bea_responses.pkl', 'wb'))
         c_resp = make_reqs('Census', c_reqs, data_years)
         pkl.dump(c_resp, open(dataPath / 'census_responses.pkl', 'wb'))
-    
+
     c_responses = pkl.load(open(dataPath / 'census_responses.pkl', 'rb'))
     b_responses = pkl.load(open(dataPath / 'bea_responses.pkl', 'rb'))
-    b_df = get_bea_df(b_responses, b_d)
-    c_df = get_census_df(c_responses, c_d)
+    b_df = get_bea_df(b_responses, b_d, data_years)
+    c_df = get_census_df(c_responses, c_d, data_years)
     i_df = pd.concat([c_df, b_df], ignore_index=True, axis=0)
     i_df['Country'] = i_df['CountryCode'].map(b_d)
     return(i_df)
 
-id_f = get_imports_data(request_data=request_data)
+if __name__ == '__main__':
+    id_f = get_imports_data(request_data=request_data)
