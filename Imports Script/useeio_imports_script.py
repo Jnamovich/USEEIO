@@ -54,6 +54,8 @@ def run_script(io_level='Summary', year=2021):
     '''
     # Country imports by detail sector
     sr_i = get_subregion_imports(year)
+    if len(sr_i.query('`Import Quantity` <0')) > 0:
+        print('WARNING: negative import values...')
 
     if io_level == 'Summary':
         u_c = get_detail_to_summary_useeio_concordance()
@@ -67,11 +69,15 @@ def run_script(io_level='Summary', year=2021):
     p_d = p_d[['TiVA Region', 'CountryCode', 'BEA Summary',
                'BEA Detail', 'Import Quantity']]
     c_d = calc_contribution_coefficients(p_d)
+
     if sum(c_d.duplicated(['CountryCode', 'BEA Detail'])) > 0:
         print('Error calculating country coefficients by detail sector')
 
     e_u = get_exio_to_useeio_concordance()
     e_d = pull_exiobase_multipliers(year)
+    check = e_d.query('`Carbon dioxide` >= 100')
+    e_d = e_d.query('`Carbon dioxide` < 100') # Drop Outliers
+    ## TODO consider an alternate approach here
     e_d = (e_d.merge(e_u, on='Exiobase Sector', how='left')
               .groupby(['BEA Detail', 'CountryCode'])
               .agg('mean')
@@ -285,8 +291,8 @@ def get_subregion_imports(year):
                            usecols=['ISO 3166-alpha-2', 'TiVA Region'])
                .rename(columns={'ISO 3166-alpha-2': 'CountryCode'})
                )
-    sr_i = (sr_i.merge(regions, on='CountryCode', how='left')
-            .rename(columns={'BEA Sector':'BEA Detail'}))
+    sr_i = (sr_i.merge(regions, on='CountryCode', how='left', validate='m:1')
+                .rename(columns={'BEA Sector':'BEA Detail'}))
     # sr_i['Subregion Contribution'] = sr_i['Import Quantity']/sr_i.groupby('BEA Sector')['Import Quantity'].transform('sum')
     # sr_i = sr_i.fillna(0).drop(columns={'Import Quantity'}).rename(columns={'BEA Sector':'BEA Detail'})
     return sr_i
@@ -329,6 +335,9 @@ def calc_contribution_coefficients(p_d):
     df = df[['TiVA Region','CountryCode','BEA Summary','BEA Detail',
              'Subregion Contribution to Summary',
              'Subregion Contribution to Detail']]
+    if not(df['Subregion Contribution to Summary'].fillna(0).between(0,1).all() &
+           df['Subregion Contribution to Detail'].fillna(0).between(0,1).all()):
+        print('ERROR: Check contribution values outside of [0-1]')
     return df
 
 
