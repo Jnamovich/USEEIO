@@ -155,7 +155,7 @@ def get_census_df(d, c_d, data_years):
             cols = (cols
                     .assign(GEN_CIF_YR = lambda x: (x['GEN_CIF_YR']
                                                     .astype(float)
-                                                    .astype(int)))
+                                                    ))
                     .rename(columns={'GEN_CIF_YR':cty})
                     .set_index('NAICS')
                     )
