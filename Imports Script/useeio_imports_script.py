@@ -40,7 +40,7 @@ conPath = Path(__file__).parent / 'Concordances'
 
 flow_cols = ('Flow', 'Compartment', 'Unit',
              'CurrencyYear', 'EmissionYear', 'PriceType',
-             'Flowable', 'Context', 'Flow UUID')
+             'Flowable', 'Context', 'FlowUUID')
 
 #%%
 
@@ -97,7 +97,8 @@ def run_script(io_level='Summary', year=2021):
     multiplier_df = (
         multiplier_df
         .assign(Compartment='emission/air')
-        .assign(Unit='kg / Euro')
+        .assign(Unit='kg')
+        .assign(ReferenceCurrency='Euro')
         .assign(CurrencyYear=str(year))
         .assign(EmissionYear='2019' if year > 2019 else str(year))
         # ^^ GHG data stops at 2019
@@ -116,6 +117,7 @@ def run_script(io_level='Summary', year=2021):
                right_on=['Flowable', 'Context'],
                )
         .drop(columns=['Flow', 'Compartment'])
+        .rename(columns={'Flow UUID': 'FlowUUID'})
         )
 
     weighted_multipliers_bea_detail, weighted_multipliers_bea_summary = (
@@ -132,8 +134,12 @@ def run_script(io_level='Summary', year=2021):
                             c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
     imports_multipliers = (
         imports_multipliers
-        .assign(Amount=lambda x: x['Amount']/exch)
-        .assign(Unit='kg / USD')
+        .assign(FlowAmount=lambda x: x['Amount']/exch)
+        .drop(columns='Amount')
+        .rename(columns={'BEA Summary': 'Sector'})
+        .assign(Unit='kg')
+        .assign(ReferenceCurrency='USD')
+        .assign(BaseIOLevel='Summary')
         )
 
     return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
