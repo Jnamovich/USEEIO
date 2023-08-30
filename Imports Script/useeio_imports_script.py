@@ -7,6 +7,7 @@ from currency_converter import CurrencyConverter
 from datetime import date
 from pathlib import Path
 from API_Imports_Data_Script import get_imports_data
+from esupy.dqi import get_weighted_average
 #%%
 ''' 
 VARIABLES:
@@ -75,18 +76,19 @@ def run_script(io_level='Summary', year=2021):
 
     e_u = get_exio_to_useeio_concordance()
     e_d = pull_exiobase_multipliers(year)
+    e_out = pull_exiobase_output(year)
     check = e_d.query('`Carbon dioxide` >= 100')
     e_d = e_d.query('`Carbon dioxide` < 100') # Drop Outliers
     ## TODO consider an alternate approach here
-    e_d = (e_d.merge(e_u, on='Exiobase Sector', how='left')
-              .groupby(['BEA Detail', 'CountryCode'])
-              .agg('mean')
-              .reset_index()
+
+    e_d = (e_d.merge(e_out, how='left')
+              .merge(e_u, on='Exiobase Sector', how='left')
               )
-    # ^^ This is a simplification. When multiple exiobase sectors can be used
-    # for a single detail sector, this takes the average EF of those sectors. 
-    
-    multiplier_df = c_d.merge(e_d, how='left',
+    agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
+    for c in [c for c in agg.columns if c not in ['indout']]:
+        agg[c] = get_weighted_average(e_d, c, 'indout', ['BEA Detail', 'CountryCode'])
+
+    multiplier_df = c_d.merge(agg.reset_index(), how='left',
                               on=['CountryCode', 'BEA Detail'])
     multiplier_df = multiplier_df.melt(
         id_vars = [c for c in multiplier_df if c not in 
@@ -228,8 +230,10 @@ def download_and_store_mrio(year):
                                           system='pxp',
                                           years=[year])
     e = pymrio.parse_exiobase3(file)
-    exio_m = e.impacts.M                                                   
-    pkl.dump(exio_m, open(dataPath / f'exio3_multipliers_{year}.pkl', 'wb'))
+    exio = {}
+    exio['M'] = e.impacts.M
+    exio['x'] = e.x
+    pkl.dump(exio, open(dataPath / f'exio3_multipliers_{year}.pkl', 'wb'))
 
 
 def remove_exports(dataframe):
@@ -308,11 +312,11 @@ def pull_exiobase_multipliers(year):
     '''
     Extracts multiplier matrix from stored Exiobase model.
     '''
-    
     file = dataPath/f'exio3_multipliers_{year}.pkl'
     if not file.exists():
         download_and_store_mrio(year)
-    M_df = pkl.load(open(file,'rb'))
+    exio = pkl.load(open(file,'rb'))
+    M_df = exio['M']
 
     fields = {**config['fields'], **config['flows']}
 
@@ -328,6 +332,22 @@ def pull_exiobase_multipliers(year):
             #       value_name = 'EF')
             )
     return M_df
+
+
+def pull_exiobase_output(year):
+    '''
+    Extracts industry output vector from stored Exiobase model.
+    '''
+    file = dataPath/f'exio3_multipliers_{year}.pkl'
+    if not file.exists():
+        download_and_store_mrio(year)
+    fields = {**config['fields'], **config['flows']}
+    exio = pkl.load(open(file,'rb'))
+    x_df = (exio['x']
+            .reset_index()
+            .rename(columns=fields)
+            )
+    return x_df
 
 
 def calc_contribution_coefficients(p_d):
