@@ -88,7 +88,8 @@ def run_script(io_level='Summary', year=2021):
     for c in [c for c in agg.columns if c not in ['indout']]:
         agg[c] = get_weighted_average(e_d, c, 'indout', ['BEA Detail', 'CountryCode'])
 
-    multiplier_df = c_d.merge(agg.reset_index(), how='left',
+    multiplier_df = c_d.merge(agg.reset_index().drop(columns='indout'),
+                              how='left',
                               on=['CountryCode', 'BEA Detail'])
     multiplier_df = multiplier_df.melt(
         id_vars = [c for c in multiplier_df if c not in 
