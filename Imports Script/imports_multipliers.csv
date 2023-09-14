@@ -14,9 +14,9 @@ Sector,Unit,CurrencyYear,EmissionYear,PriceType,Flowable,Context,FlowUUID,FlowAm
 213,kg,2021,2019,Basic,Carbon dioxide,emission/air,b6f010fb-a764-3063-af2d-bcb8309a97b7,1.5291512853236862,USD,Summary
 213,kg,2021,2019,Basic,Methane,emission/air,aab83476-ec6c-3742-af85-15d320b7ce80,0.051295426309872466,USD,Summary
 213,kg,2021,2019,Basic,Nitrous oxide,emission/air,cfee0524-7ad6-300b-b050-6249135a2492,1.2072160046664492e-05,USD,Summary
-22,kg,2021,2019,Basic,Carbon dioxide,emission/air,b6f010fb-a764-3063-af2d-bcb8309a97b7,0.2834836111430136,USD,Summary
-22,kg,2021,2019,Basic,Methane,emission/air,aab83476-ec6c-3742-af85-15d320b7ce80,0.002744276520793486,USD,Summary
-22,kg,2021,2019,Basic,Nitrous oxide,emission/air,cfee0524-7ad6-300b-b050-6249135a2492,8.974816808149235e-06,USD,Summary
+22,kg,2021,2019,Basic,Carbon dioxide,emission/air,b6f010fb-a764-3063-af2d-bcb8309a97b7,2.3325714005762204,USD,Summary
+22,kg,2021,2019,Basic,Methane,emission/air,aab83476-ec6c-3742-af85-15d320b7ce80,0.004454491018342398,USD,Summary
+22,kg,2021,2019,Basic,Nitrous oxide,emission/air,cfee0524-7ad6-300b-b050-6249135a2492,5.5765830471193664e-05,USD,Summary
 311FT,kg,2021,2019,Basic,Carbon dioxide,emission/air,b6f010fb-a764-3063-af2d-bcb8309a97b7,0.33166273013447517,USD,Summary
 311FT,kg,2021,2019,Basic,Methane,emission/air,aab83476-ec6c-3742-af85-15d320b7ce80,0.0196220163562848,USD,Summary
 311FT,kg,2021,2019,Basic,Nitrous oxide,emission/air,cfee0524-7ad6-300b-b050-6249135a2492,1.4076635382527788e-05,USD,Summary
