@@ -41,7 +41,7 @@ conPath = Path(__file__).parent / 'Concordances'
 
 flow_cols = ('Flow', 'Compartment', 'Unit',
              'CurrencyYear', 'EmissionYear', 'PriceType',
-             'Flowable', 'Context', 'FlowUUID')
+             'Flowable', 'Context', 'FlowUUID', 'ReferenceCurrency')
 
 #%%
 
@@ -84,6 +84,7 @@ def run_script(io_level='Summary', year=2021):
     e_d = (e_d.merge(e_out, how='left')
               .merge(e_u, on='Exiobase Sector', how='left')
               )
+    # INSERT HERE TO REVIEW SECTOR CONTRIBUTIONS WITHIN A COUNTRY
     agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
     for c in [c for c in agg.columns if c not in ['indout']]:
         agg[c] = get_weighted_average(e_d, c, 'indout', ['BEA Detail', 'CountryCode'])
@@ -416,17 +417,17 @@ def calculate_specific_emission_factors(multiplier_df):
     '''
     
     multiplier_df = (multiplier_df
-                     .assign(Amount = (multiplier_df['EF'] *
+                     .assign(Amount_detail = (multiplier_df['EF'] *
                              multiplier_df['Subregion Contribution to Detail']))
                      .assign(Amount = (multiplier_df['EF'] *
                              multiplier_df['Subregion Contribution to Summary']))
                      )
-
+    # INSERT HERE TO GET DATA BY COUNTRY
     col = [c for c in multiplier_df if c in flow_cols]
 
     weighted_multipliers_bea_detail = (multiplier_df
         .groupby(['TiVA Region','BEA Detail'] + col)
-        .agg({'Amount': 'sum'}).reset_index())
+        .agg({'Amount_detail': 'sum'}).reset_index())
     weighted_multipliers_bea_summary = (multiplier_df
         .groupby(['TiVA Region','BEA Summary'] + col)
         .agg({'Amount': 'sum'}).reset_index())
@@ -451,14 +452,15 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
                on=['TiVA Region','BEA Summary'])
         .assign(region_contributions_imports=lambda x:
                 x['region_contributions_imports'].fillna(0))
+        .rename(columns={'Amount':'EF'})
             )
 
     weighted_df_imports = (
         weighted_df_imports.assign(Amount=lambda x:
-                                   x['Amount'] *
+                                   x['EF'] *
                                    x['region_contributions_imports'])
         )
-
+    # INSERT HERE TO GET DATA BY TIVA REGION
     col = [c for c in weighted_df_imports if c in flow_cols]
 
     imports_multipliers = (
