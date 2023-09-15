@@ -461,6 +461,16 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
                                    x['region_contributions_imports'])
         )
     # INSERT HERE TO GET DATA BY TIVA REGION
+    tiva_summary = (weighted_df_imports
+                    .groupby(['Flowable', 'TiVA Region', 'BEA Summary'])
+                    .agg({'Amount': sum})
+                    )
+    tiva_summary['percent'] = (tiva_summary['Amount'] / 
+                               tiva_summary.groupby(['BEA Summary', 'Flowable'])
+                               ['Amount'].transform('sum'))
+
+    # tiva_summary.to_csv('import_multipliers_by_TiVA.csv')
+
     col = [c for c in weighted_df_imports if c in flow_cols]
 
     imports_multipliers = (
