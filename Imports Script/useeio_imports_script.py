@@ -177,15 +177,9 @@ def get_tiva_data(year):
                  .dropna()
                  .apply(pd.to_numeric)
                  )
-        df[abbv] = df[list(df.columns)].sum(axis=1)
-        df = df.reset_index()
-        ri_r = df[['IOCode', abbv]]
-        if ri_df.empty:
-            ri_df = ri_r
-        else:
-            ri_df = pd.merge(ri_df, ri_r, how='outer', on='IOCode')
-        ri_df = ri_df.iloc[:-3]
-    ri_df = ri_df.set_index('IOCode')
+        df[abbv] = df[list(df.columns)].sum(axis=1) # row sums
+        ri_r = df[[abbv]]
+        ri_df = pd.concat([ri_df, ri_r], axis=1)
 
     return ri_df
 
