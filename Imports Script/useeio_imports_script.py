@@ -129,9 +129,14 @@ def run_script(io_level='Summary', year=2021):
 
     # Aggregate by TiVa Region
     t_c = calc_tiva_coefficients(year)
-    imports_multipliers = (calculateWeightedEFsImportsData(
-        weighted_multipliers_bea_summary, t_c))
-
+    imports_multipliers = calculateWeightedEFsImportsData(
+        # weighted_multipliers_bea_summary, t_c)
+        weighted_multipliers_bea_summary.query('Amount != 0'),
+        t_c.query('region_contributions_imports != 0'))
+    check = (set(t_c.query('region_contributions_imports != 0')['BEA Summary']) - 
+             set(weighted_multipliers_bea_summary.query('Amount != 0')['BEA Summary']))
+    if len(check) > 0:
+        print(f'There are sectors with imports but no emisson factors: {check}')
     # Currency adjustment
     c = CurrencyConverter(fallback_on_missing_rate=True)
     exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
@@ -202,7 +207,8 @@ def calc_tiva_coefficients(year):
            .merge(corr, on='BEA Imports', how='left', validate='one_to_many')
            .groupby('BEA Summary').agg('sum')
            )
-
+    count = list(t_c.loc[(t_c.sum(axis=1) != 0),].reset_index()['BEA Summary'])
+    ## ^^ Sectors with imports
     t_c = (t_c.div(t_c.sum(axis=1), axis=0).fillna(0)
               .reset_index())
 
@@ -442,7 +448,7 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
     '''
     weighted_df_imports = (
         weighted_multipliers
-        .merge(import_contribution_coeffs, how='left', validate='m:1',
+        .merge(import_contribution_coeffs, how='right', validate='m:1',
                on=['TiVA Region','BEA Summary'])
         .assign(region_contributions_imports=lambda x:
                 x['region_contributions_imports'].fillna(0))
