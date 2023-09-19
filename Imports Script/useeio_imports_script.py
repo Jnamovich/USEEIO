@@ -41,7 +41,7 @@ conPath = Path(__file__).parent / 'Concordances'
 
 flow_cols = ('Flow', 'Compartment', 'Unit',
              'CurrencyYear', 'EmissionYear', 'PriceType',
-             'Flowable', 'Context', 'FlowUUID')
+             'Flowable', 'Context', 'FlowUUID', 'ReferenceCurrency')
 
 #%%
 
@@ -84,6 +84,7 @@ def run_script(io_level='Summary', year=2021):
     e_d = (e_d.merge(e_out, how='left')
               .merge(e_u, on='Exiobase Sector', how='left')
               )
+    # INSERT HERE TO REVIEW SECTOR CONTRIBUTIONS WITHIN A COUNTRY
     agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
     for c in [c for c in agg.columns if c not in ['indout']]:
         agg[c] = get_weighted_average(e_d, c, 'indout', ['BEA Detail', 'CountryCode'])
@@ -128,9 +129,15 @@ def run_script(io_level='Summary', year=2021):
 
     # Aggregate by TiVa Region
     t_c = calc_tiva_coefficients(year)
-    imports_multipliers = (calculateWeightedEFsImportsData(
-        weighted_multipliers_bea_summary, t_c))
-
+    imports_multipliers = calculateWeightedEFsImportsData(
+        # weighted_multipliers_bea_summary, t_c)
+        weighted_multipliers_bea_summary.query('Amount != 0'),
+        t_c.query('region_contributions_imports != 0'),
+        year)
+    check = (set(t_c.query('region_contributions_imports != 0')['BEA Summary']) - 
+             set(weighted_multipliers_bea_summary.query('Amount != 0')['BEA Summary']))
+    if len(check) > 0:
+        print(f'There are sectors with imports but no emisson factors: {check}')
     # Currency adjustment
     c = CurrencyConverter(fallback_on_missing_rate=True)
     exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
@@ -176,15 +183,9 @@ def get_tiva_data(year):
                  .dropna()
                  .apply(pd.to_numeric)
                  )
-        df[abbv] = df[list(df.columns)].sum(axis=1)
-        df = df.reset_index()
-        ri_r = df[['IOCode', abbv]]
-        if ri_df.empty:
-            ri_df = ri_r
-        else:
-            ri_df = pd.merge(ri_df, ri_r, how='outer', on='IOCode')
-        ri_df = ri_df.iloc[:-3]
-    ri_df = ri_df.set_index('IOCode')
+        df[abbv] = df[list(df.columns)].sum(axis=1) # row sums
+        ri_r = df[[abbv]]
+        ri_df = pd.concat([ri_df, ri_r], axis=1)
 
     return ri_df
 
@@ -207,7 +208,8 @@ def calc_tiva_coefficients(year):
            .merge(corr, on='BEA Imports', how='left', validate='one_to_many')
            .groupby('BEA Summary').agg('sum')
            )
-
+    count = list(t_c.loc[(t_c.sum(axis=1) != 0),].reset_index()['BEA Summary'])
+    ## ^^ Sectors with imports
     t_c = (t_c.div(t_c.sum(axis=1), axis=0).fillna(0)
               .reset_index())
 
@@ -296,7 +298,7 @@ def get_subregion_imports(year):
     '''
     Generates dataset of imports by country by sector from BEA and Census
     '''
-    sr_i = get_imports_data(False, data_years=[year])
+    sr_i = get_imports_data(request_data=False, year=year)
     path = conPath / 'exio_tiva_concordance.csv'
     regions = (pd.read_csv(path, dtype=str,
                            usecols=['ISO 3166-alpha-2', 'TiVA Region'])
@@ -416,17 +418,17 @@ def calculate_specific_emission_factors(multiplier_df):
     '''
     
     multiplier_df = (multiplier_df
-                     .assign(Amount = (multiplier_df['EF'] *
+                     .assign(Amount_detail = (multiplier_df['EF'] *
                              multiplier_df['Subregion Contribution to Detail']))
                      .assign(Amount = (multiplier_df['EF'] *
                              multiplier_df['Subregion Contribution to Summary']))
                      )
-
+    # INSERT HERE TO GET DATA BY COUNTRY
     col = [c for c in multiplier_df if c in flow_cols]
 
     weighted_multipliers_bea_detail = (multiplier_df
         .groupby(['TiVA Region','BEA Detail'] + col)
-        .agg({'Amount': 'sum'}).reset_index())
+        .agg({'Amount_detail': 'sum'}).reset_index())
     weighted_multipliers_bea_summary = (multiplier_df
         .groupby(['TiVA Region','BEA Summary'] + col)
         .agg({'Amount': 'sum'}).reset_index())
@@ -434,7 +436,7 @@ def calculate_specific_emission_factors(multiplier_df):
 
 
 def calculateWeightedEFsImportsData(weighted_multipliers,
-                                    import_contribution_coeffs):
+                                    import_contribution_coeffs, year):
     '''
     Merges import contribution coefficients with weighted exiobase 
     multiplier dataframe. Import coefficients are then multiplied by the 
@@ -447,17 +449,32 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
     '''
     weighted_df_imports = (
         weighted_multipliers
-        .merge(import_contribution_coeffs, how='left', validate='m:1',
+        .merge(import_contribution_coeffs, how='right', validate='m:1',
                on=['TiVA Region','BEA Summary'])
         .assign(region_contributions_imports=lambda x:
                 x['region_contributions_imports'].fillna(0))
+        .rename(columns={'Amount':'EF'})
             )
 
     weighted_df_imports = (
         weighted_df_imports.assign(Amount=lambda x:
-                                   x['Amount'] *
+                                   x['EF'] *
                                    x['region_contributions_imports'])
         )
+    # INSERT HERE TO GET DATA BY TIVA REGION
+    tiva_summary = (weighted_df_imports
+                    .groupby(['Flowable', 'TiVA Region', 'BEA Summary'])
+                    .agg({'Amount': sum,
+                          'region_contributions_imports': sum})
+                    .rename(columns={'region_contributions_imports':
+                                     'contribution_imports'})
+                    )
+    tiva_summary['contribution_ef'] = (tiva_summary['Amount'] / 
+                                       tiva_summary.groupby(['BEA Summary', 'Flowable'])
+                                       ['Amount'].transform('sum'))
+
+    tiva_summary.drop(columns='Amount').to_csv(
+        f'import_multipliers_by_TiVA_{year}.csv')
 
     col = [c for c in weighted_df_imports if c in flow_cols]
 
@@ -473,7 +490,8 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
 #%%
 if __name__ == '__main__':
+    year = 2019
     (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary) = run_script(year=2021)
+            weighted_multipliers_bea_summary) = run_script(year=year)
 
-    imports_multipliers.to_csv('imports_multipliers.csv', index=False)
+    imports_multipliers.to_csv(f'imports_multipliers_{year}.csv', index=False)
