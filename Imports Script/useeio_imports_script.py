@@ -132,7 +132,8 @@ def run_script(io_level='Summary', year=2021):
     imports_multipliers = calculateWeightedEFsImportsData(
         # weighted_multipliers_bea_summary, t_c)
         weighted_multipliers_bea_summary.query('Amount != 0'),
-        t_c.query('region_contributions_imports != 0'))
+        t_c.query('region_contributions_imports != 0'),
+        year)
     check = (set(t_c.query('region_contributions_imports != 0')['BEA Summary']) - 
              set(weighted_multipliers_bea_summary.query('Amount != 0')['BEA Summary']))
     if len(check) > 0:
@@ -297,7 +298,7 @@ def get_subregion_imports(year):
     '''
     Generates dataset of imports by country by sector from BEA and Census
     '''
-    sr_i = get_imports_data(False, data_years=[year])
+    sr_i = get_imports_data(request_data=False, year=year)
     path = conPath / 'exio_tiva_concordance.csv'
     regions = (pd.read_csv(path, dtype=str,
                            usecols=['ISO 3166-alpha-2', 'TiVA Region'])
@@ -435,7 +436,7 @@ def calculate_specific_emission_factors(multiplier_df):
 
 
 def calculateWeightedEFsImportsData(weighted_multipliers,
-                                    import_contribution_coeffs):
+                                    import_contribution_coeffs, year):
     '''
     Merges import contribution coefficients with weighted exiobase 
     multiplier dataframe. Import coefficients are then multiplied by the 
@@ -472,7 +473,8 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
                                        tiva_summary.groupby(['BEA Summary', 'Flowable'])
                                        ['Amount'].transform('sum'))
 
-    # tiva_summary.drop(columns='Amount').to_csv('import_multipliers_by_TiVA.csv')
+    tiva_summary.drop(columns='Amount').to_csv(
+        f'import_multipliers_by_TiVA_{year}.csv')
 
     col = [c for c in weighted_df_imports if c in flow_cols]
 
@@ -488,7 +490,8 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
 #%%
 if __name__ == '__main__':
+    year = 2019
     (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary) = run_script(year=2021)
+            weighted_multipliers_bea_summary) = run_script(year=year)
 
-    imports_multipliers.to_csv('imports_multipliers.csv', index=False)
+    imports_multipliers.to_csv(f'imports_multipliers_{year}.csv', index=False)
