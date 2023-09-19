@@ -222,26 +222,24 @@ def get_bea_df(d, b_d, data_years):
         df_all = pd.concat([df_all, df], ignore_index=True)
     return df_all
 
-def get_imports_data(request_data, data_years=['2020']):
+def get_imports_data(request_data, year=2020):
     '''
     A function to call from other scripts.
     '''
-    # TODO Update data call with more years, until then set as 2020
-    data_years=['2020']
-
     b_d, c_d = get_country_schema()
+    year = str(year)
     if request_data == True:    
         b_reqs = create_Reqs('BEA_API.yml', b_d)
         c_reqs = create_Reqs('Census_API.yml', c_d)
-        b_resp = make_reqs('BEA', b_reqs, data_years)
-        pkl.dump(b_resp, open(dataPath / 'bea_responses.pkl', 'wb'))
-        c_resp = make_reqs('Census', c_reqs, data_years)
-        pkl.dump(c_resp, open(dataPath / 'census_responses.pkl', 'wb'))
+        b_resp = make_reqs('BEA', b_reqs, [year])
+        pkl.dump(b_resp, open(dataPath / f'bea_responses_{year}.pkl', 'wb'))
+        c_resp = make_reqs('Census', c_reqs, [year])
+        pkl.dump(c_resp, open(dataPath / f'census_responses{year}.pkl', 'wb'))
 
-    c_responses = pkl.load(open(dataPath / 'census_responses.pkl', 'rb'))
-    b_responses = pkl.load(open(dataPath / 'bea_responses.pkl', 'rb'))
-    b_df = get_bea_df(b_responses, b_d, data_years)
-    c_df = get_census_df(c_responses, c_d, data_years)
+    c_responses = pkl.load(open(dataPath / f'census_responses_{year}.pkl', 'rb'))
+    b_responses = pkl.load(open(dataPath / f'bea_responses_{year}.pkl', 'rb'))
+    b_df = get_bea_df(b_responses, b_d, [year])
+    c_df = get_census_df(c_responses, c_d, [year])
     i_df = pd.concat([c_df, b_df], ignore_index=True, axis=0)
     i_df['Country'] = i_df['CountryCode'].map(b_d)
     return(i_df)
