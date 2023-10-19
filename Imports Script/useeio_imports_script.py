@@ -236,6 +236,11 @@ def download_and_store_mrio(year):
     exio = {}
     exio['M'] = e.impacts.M
     exio['x'] = e.x
+    trade = pymrio.IOSystem.get_gross_trade(e)
+    exio['totals'] = trade[1]
+    # ^^ df with gross total imports and exports per sector and region
+    exio['bilat_flows'] = trade[0]
+    # ^^ df with rows: exporting country and sector, columns: importing countries
     pkl.dump(exio, open(dataPath / f'exio3_multipliers_{year}.pkl', 'wb'))
 
 
