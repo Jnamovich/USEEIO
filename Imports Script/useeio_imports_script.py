@@ -166,7 +166,7 @@ def run_script(io_level='Summary', year_Start=2007, year_End=2021,
             .assign(BaseIOLevel='Summary')
             )
         store_Data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
-                   weighted_multipliers_bea_summary)
+                   weighted_multipliers_bea_summary, year)
     # return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
     #         weighted_multipliers_bea_summary)
 
@@ -503,12 +503,15 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
     return imports_multipliers
 
-def store_Data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
-           weighted_multipliers_bea_summary):
-    imports_multipliers.to_csv(path_or_buf=im_Path / f'imports_multipliers_{year}.csv', index=False)
-    sr_i.to_csv(path_or_buf=sr_Path / f'subregion_imports_{year}.csv', index=False)
-    weighted_multipliers_bea_detail.to_csv(path_or_buf=wmd_Path / f'weighted_multipliers_detail_{year}.csv', index=False)
-    weighted_multipliers_bea_summary.to_csv(path_or_buf=wms_Path / f'weighted_multipliers_summary_{year}.csv', index=False)
+def store_Data(sr_i,
+               imports_multipliers,
+               weighted_multipliers_bea_detail,
+               weighted_multipliers_bea_summary,
+               year):
+    imports_multipliers.to_csv(im_Path / f'imports_multipliers_{year}.csv', index=False)
+    sr_i.to_csv(sr_Path / f'subregion_imports_{year}.csv', index=False)
+    weighted_multipliers_bea_detail.to_csv(wmd_Path / f'weighted_multipliers_detail_{year}.csv', index=False)
+    weighted_multipliers_bea_summary.to_csv(wms_Path / f'weighted_multipliers_summary_{year}.csv', index=False)
 
 
 
