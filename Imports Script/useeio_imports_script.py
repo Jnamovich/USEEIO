@@ -7,6 +7,7 @@ from currency_converter import CurrencyConverter
 from datetime import date
 from pathlib import Path
 from API_Imports_Data_Script import get_imports_data
+from Exiobase_downloads import run_All
 from esupy.dqi import get_weighted_average
 #%%
 ''' 
@@ -38,6 +39,13 @@ e_d = Exiobase emission factors per unit currency
 #%%
 dataPath = Path(__file__).parent / 'Data'
 conPath = Path(__file__).parent / 'Concordances'
+bt_Path = Path(__file__).parent / 'Exiobase Bilateral Trade'
+ef_Path = Path(__file__).parent / 'Exiobase EF-Arrays'
+m_Path = Path(__file__).parent / 'Exiobase M-Arrays'
+im_Path = Path(__file__).parent / 'Imports Multipliers'
+wmd_Path = Path(__file__).parent / 'Output - Weighted_Multipliers, BEA Detail'
+wms_Path = Path(__file__).parent / 'Output - Weighted_Multipliers, BEA Summary'
+sr_Path = Path(__file__).parent / 'Output - Subregional Imports'
 
 flow_cols = ('Flow', 'Compartment', 'Unit',
              'CurrencyYear', 'EmissionYear', 'PriceType',
@@ -49,111 +57,127 @@ with open(dataPath.parent / "Data" / "exio_config.yml", "r") as file:
     config = yaml.safe_load(file)
 
 
-def run_script(io_level='Summary', year=2021):
+def run_script(io_level='Summary', year_Start=2007, year_End=2021, 
+               get_All_Exiobase_Assets=False, download_Exiobase_Models=False):
     '''
     Runs through script to produce emission factors for U.S. imports.
     '''
-    # Country imports by detail sector
-    sr_i = get_subregion_imports(year)
-    if len(sr_i.query('`Import Quantity` <0')) > 0:
-        print('WARNING: negative import values...')
-
-    if io_level == 'Summary':
-        u_c = get_detail_to_summary_useeio_concordance()
-        sr_i = (sr_i.merge(u_c, how='left', on='BEA Detail', validate='m:1'))
-
-    else: # Detail
-        print('ERROR: not yet implemented')
-        sr_i = sr_i.rename(columns={'BEA Detail': 'BEA'})
-
-    p_d = sr_i.copy()
-    p_d = p_d[['TiVA Region', 'CountryCode', 'BEA Summary',
-               'BEA Detail', 'Import Quantity']]
-    c_d = calc_contribution_coefficients(p_d)
-
-    if sum(c_d.duplicated(['CountryCode', 'BEA Detail'])) > 0:
-        print('Error calculating country coefficients by detail sector')
-
-    e_u = get_exio_to_useeio_concordance()
-    e_d = pull_exiobase_multipliers(year)
-    e_out = pull_exiobase_output(year)
-    check = e_d.query('`Carbon dioxide` >= 100')
-    e_d = e_d.query('`Carbon dioxide` < 100') # Drop Outliers
-    ## TODO consider an alternate approach here
-
-    e_d = (e_d.merge(e_out, how='left')
-              .merge(e_u, on='Exiobase Sector', how='left')
+    years = years_List(year_Start, year_End)
+    for year in years:
+        # Country imports by detail sector
+        sr_i = get_subregion_imports(year)
+        if len(sr_i.query('`Import Quantity` <0')) > 0:
+            print('WARNING: negative import values...')
+    
+        if io_level == 'Summary':
+            u_c = get_detail_to_summary_useeio_concordance()
+            sr_i = (sr_i.merge(u_c, how='left', on='BEA Detail', validate='m:1'))
+    
+        else: # Detail
+            print('ERROR: not yet implemented')
+            sr_i = sr_i.rename(columns={'BEA Detail': 'BEA'})
+    
+        p_d = sr_i.copy()
+        p_d = p_d[['TiVA Region', 'CountryCode', 'BEA Summary',
+                   'BEA Detail', 'Import Quantity']]
+        c_d = calc_contribution_coefficients(p_d)
+    
+        if sum(c_d.duplicated(['CountryCode', 'BEA Detail'])) > 0:
+            print('Error calculating country coefficients by detail sector')
+        if get_All_Exiobase_Assets == True:
+            run_All(year_Start,year_End,download_Exiobase_Models)
+        e_u = get_exio_to_useeio_concordance()
+        e_d = pull_exiobase_multipliers(year)
+        e_bil = pull_exiobase_bilateral_trade(year)
+        check = e_d.query('`Carbon dioxide` >= 100')
+        e_d = e_d.query('`Carbon dioxide` < 100') # Drop Outliers
+        ## TODO consider an alternate approach here
+    
+        e_d = (e_d.merge(e_bil, on=['CountryCode','Exiobase Sector'], how='left')
+                  .merge(e_u, on='Exiobase Sector', how='left')
+                  )
+        e_d = e_d.query('`Bilateral Trade Total` > 0')
+        # INSERT HERE TO REVIEW SECTOR CONTRIBUTIONS WITHIN A COUNTRY
+        agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
+        for c in [c for c in agg.columns if c not in ['Bilateral Trade Total']]:
+            agg[c] = get_weighted_average(e_d, c, 'Bilateral Trade Total', 
+                                          ['BEA Detail','CountryCode'])
+    
+        multiplier_df = c_d.merge(agg.reset_index().drop(columns='Bilateral Trade Total'),
+                                  how='left',
+                                  on=['CountryCode', 'BEA Detail'])
+        multiplier_df = multiplier_df.melt(
+            id_vars = [c for c in multiplier_df if c not in 
+                       config['flows'].values()],
+            var_name = 'Flow',
+            value_name = 'EF')
+    
+        multiplier_df = (
+            multiplier_df
+            .assign(Compartment='emission/air')
+            .assign(Unit='kg')
+            .assign(ReferenceCurrency='Euro')
+            .assign(CurrencyYear=str(year))
+            .assign(EmissionYear=str(year))
+            # ^^ GHG data stops at 2019
+            .assign(PriceType='Basic')
+            )
+    
+        import fedelemflowlist as fedelem
+        fl = (fedelem.get_flows()
+              .query('Flowable in @multiplier_df.Flow')
+              .filter(['Flowable', 'Context', 'Flow UUID'])
               )
-    # INSERT HERE TO REVIEW SECTOR CONTRIBUTIONS WITHIN A COUNTRY
-    agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
-    for c in [c for c in agg.columns if c not in ['indout']]:
-        agg[c] = get_weighted_average(e_d, c, 'indout', ['BEA Detail', 'CountryCode'])
+        multiplier_df = (
+            multiplier_df
+            .merge(fl, how='left',
+                   left_on=['Flow', 'Compartment'],
+                   right_on=['Flowable', 'Context'],
+                   )
+            .drop(columns=['Flow', 'Compartment'])
+            .rename(columns={'Flow UUID': 'FlowUUID'})
+            )
+    
+        weighted_multipliers_bea_detail, weighted_multipliers_bea_summary = (
+            calculate_specific_emission_factors(multiplier_df))
+    
+        # Aggregate by TiVa Region
+        t_c = calc_tiva_coefficients(year)
+        imports_multipliers = calculateWeightedEFsImportsData(
+            # weighted_multipliers_bea_summary, t_c)
+            weighted_multipliers_bea_summary.query('Amount != 0'),
+            t_c.query('region_contributions_imports != 0'),
+            year)
+        check = (set(t_c.query('region_contributions_imports != 0')['BEA Summary']) - 
+                 set(weighted_multipliers_bea_summary.query('Amount != 0')['BEA Summary']))
+        if len(check) > 0:
+            print(f'There are sectors with imports but no emisson factors: {check}')
+        # Currency adjustment
+        c = CurrencyConverter(fallback_on_missing_rate=True)
+        exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
+                                c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
+        imports_multipliers = (
+            imports_multipliers
+            .assign(FlowAmount=lambda x: x['Amount']/exch)
+            .drop(columns='Amount')
+            .rename(columns={'BEA Summary': 'Sector'})
+            .assign(Unit='kg')
+            .assign(ReferenceCurrency='USD')
+            .assign(BaseIOLevel='Summary')
+            )
+        store_Data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
+                   weighted_multipliers_bea_summary)
+    # return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
+    #         weighted_multipliers_bea_summary)
 
-    multiplier_df = c_d.merge(agg.reset_index().drop(columns='indout'),
-                              how='left',
-                              on=['CountryCode', 'BEA Detail'])
-    multiplier_df = multiplier_df.melt(
-        id_vars = [c for c in multiplier_df if c not in 
-                   config['flows'].values()],
-        var_name = 'Flow',
-        value_name = 'EF')
-
-    multiplier_df = (
-        multiplier_df
-        .assign(Compartment='emission/air')
-        .assign(Unit='kg')
-        .assign(ReferenceCurrency='Euro')
-        .assign(CurrencyYear=str(year))
-        .assign(EmissionYear='2019' if year > 2019 else str(year))
-        # ^^ GHG data stops at 2019
-        .assign(PriceType='Basic')
-        )
-
-    import fedelemflowlist as fedelem
-    fl = (fedelem.get_flows()
-          .query('Flowable in @multiplier_df.Flow')
-          .filter(['Flowable', 'Context', 'Flow UUID'])
-          )
-    multiplier_df = (
-        multiplier_df
-        .merge(fl, how='left',
-               left_on=['Flow', 'Compartment'],
-               right_on=['Flowable', 'Context'],
-               )
-        .drop(columns=['Flow', 'Compartment'])
-        .rename(columns={'Flow UUID': 'FlowUUID'})
-        )
-
-    weighted_multipliers_bea_detail, weighted_multipliers_bea_summary = (
-        calculate_specific_emission_factors(multiplier_df))
-
-    # Aggregate by TiVa Region
-    t_c = calc_tiva_coefficients(year)
-    imports_multipliers = calculateWeightedEFsImportsData(
-        # weighted_multipliers_bea_summary, t_c)
-        weighted_multipliers_bea_summary.query('Amount != 0'),
-        t_c.query('region_contributions_imports != 0'),
-        year)
-    check = (set(t_c.query('region_contributions_imports != 0')['BEA Summary']) - 
-             set(weighted_multipliers_bea_summary.query('Amount != 0')['BEA Summary']))
-    if len(check) > 0:
-        print(f'There are sectors with imports but no emisson factors: {check}')
-    # Currency adjustment
-    c = CurrencyConverter(fallback_on_missing_rate=True)
-    exch = statistics.mean([c.convert(1, 'EUR', 'USD', date=date(year, 1, 1)),
-                            c.convert(1, 'EUR', 'USD', date=date(year, 12, 30))])
-    imports_multipliers = (
-        imports_multipliers
-        .assign(FlowAmount=lambda x: x['Amount']/exch)
-        .drop(columns='Amount')
-        .rename(columns={'BEA Summary': 'Sector'})
-        .assign(Unit='kg')
-        .assign(ReferenceCurrency='USD')
-        .assign(BaseIOLevel='Summary')
-        )
-
-    return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary)
+def years_List(Year_Start, Year_End):
+    '''
+    A function to set the range of years the user desires to download exiobase
+    models for, or to extract components of those models.
+    '''
+    Year_End += 1 
+    years = list(range(Year_Start,Year_End))
+    return years
 
 
 def get_tiva_data(year):
@@ -223,25 +247,25 @@ def calc_tiva_coefficients(year):
     return t_c
 
 
-def download_and_store_mrio(year):
-    '''
-    If MRIO object not already present in directory, downloads MRIO object.
-    '''
-    file = dataPath / f'IOT_{year}_pxp.zip'
-    if not file.exists():
-        exio3 = pymrio.download_exiobase3(storage_folder=dataPath,
-                                          system='pxp',
-                                          years=[year])
-    e = pymrio.parse_exiobase3(file)
-    exio = {}
-    exio['M'] = e.impacts.M
-    exio['x'] = e.x
-    trade = pymrio.IOSystem.get_gross_trade(e)
-    exio['totals'] = trade[1]
-    # ^^ df with gross total imports and exports per sector and region
-    exio['bilat_flows'] = trade[0]
-    # ^^ df with rows: exporting country and sector, columns: importing countries
-    pkl.dump(exio, open(dataPath / f'exio3_multipliers_{year}.pkl', 'wb'))
+# def download_and_store_mrio(year):
+#     '''
+#     If MRIO object not already present in directory, downloads MRIO object.
+#     '''
+#     file = dataPath / f'IOT_{year}_pxp.zip'
+#     if not file.exists():
+#         exio3 = pymrio.download_exiobase3(storage_folder=dataPath,
+#                                           system='pxp',
+#                                           years=[year])
+#     e = pymrio.parse_exiobase3(file)
+#     exio = {}
+#     exio['M'] = e.impacts.M
+#     exio['x'] = e.x
+#     trade = pymrio.IOSystem.get_gross_trade(e)
+#     # exio['totals'] = trade[1] used bilateral trade values instead
+#     # ^^ df with gross total imports and exports per sector and region
+#     exio['bilat_flows'] = trade[0]
+#     # ^^ df with rows: exporting country and sector, columns: importing countries
+#     pkl.dump(exio, open(dataPath / f'exio3_multipliers_{year}.pkl', 'wb'))
 
 
 def remove_exports(dataframe):
@@ -320,42 +344,29 @@ def pull_exiobase_multipliers(year):
     '''
     Extracts multiplier matrix from stored Exiobase model.
     '''
-    file = dataPath/f'exio3_multipliers_{year}.pkl'
+    file = ef_Path/f'exio3_EFs_{year}.pkl'
     if not file.exists():
-        download_and_store_mrio(year)
-    exio = pkl.load(open(file,'rb'))
-    M_df = exio['M']
-
-    fields = {**config['fields'], **config['flows']}
-
-    M_df = M_df.loc[M_df.index.isin(fields.keys())]
-    M_df = (M_df
-            .transpose()
-            .reset_index()
-            .rename(columns=fields)
-            # .melt(value_vars = [c for c in renamed_categories.values() if c not
-            #                 in ['Exiobase Sector', 'Country']],
-            #       id_vars = ['Exiobase Sector', 'Country'],
-            #       var_name = 'Flow',
-            #       value_name = 'EF')
-            )
-    return M_df
+        print(f"Exiobase EFs Multiplier Does not Exist for Year:{year}, Please Download & Process")
+    EF_df = pkl.load(open(file,'rb'))
+    
+    return EF_df
 
 
-def pull_exiobase_output(year):
+def pull_exiobase_bilateral_trade(year):
     '''
     Extracts industry output vector from stored Exiobase model.
     '''
-    file = dataPath/f'exio3_multipliers_{year}.pkl'
+    file = bt_Path/f'exio_bilateral_trade_{year}.pkl'
     if not file.exists():
-        download_and_store_mrio(year)
-    fields = {**config['fields'], **config['flows']}
+        print(f"Exiobase Bilateral Trade Data Does not Exist for Year:{year}, Please Download & Process")
     exio = pkl.load(open(file,'rb'))
-    x_df = (exio['x']
+    fields = {**config['fields'], **config['flows']}
+    fields['US'] = 'Bilateral Trade Total'
+    t_df = (exio
             .reset_index()
             .rename(columns=fields)
             )
-    return x_df
+    return t_df
 
 
 def calc_contribution_coefficients(p_d):
@@ -492,11 +503,20 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
     return imports_multipliers
 
+def store_Data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
+           weighted_multipliers_bea_summary):
+    imports_multipliers.to_csv(path_or_buf=im_Path / f'imports_multipliers_{year}.csv', index=False)
+    sr_i.to_csv(path_or_buf=sr_Path / f'subregion_imports_{year}.csv', index=False)
+    weighted_multipliers_bea_detail.to_csv(path_or_buf=wmd_Path / f'weighted_multipliers_detail_{year}.csv', index=False)
+    weighted_multipliers_bea_summary.to_csv(path_or_buf=wms_Path / f'weighted_multipliers_summary_{year}.csv', index=False)
+
+
 
 #%%
 if __name__ == '__main__':
-    year = 2019
-    (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
-            weighted_multipliers_bea_summary) = run_script(year=year)
+    run_script(year_Start=2019, year_End=2019)
+    # year = 2019
+    # (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
+    #         weighted_multipliers_bea_summary) = run_script(year=year)
 
-    imports_multipliers.to_csv(f'imports_multipliers_{year}.csv', index=False)
+    # imports_multipliers.to_csv(f'imports_multipliers_{year}.csv', index=False)
