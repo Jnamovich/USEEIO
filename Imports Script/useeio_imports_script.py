@@ -288,7 +288,7 @@ def get_subregion_imports(year):
     '''
     Generates dataset of imports by country by sector from BEA and Census
     '''
-    sr_i = get_imports_data(request_data=False, year=year)
+    sr_i = get_imports_data(year=year)
     path = conPath / 'exio_tiva_concordance.csv'
     regions = (pd.read_csv(path, dtype=str,
                            usecols=['ISO 3166-alpha-2', 'TiVA Region'])

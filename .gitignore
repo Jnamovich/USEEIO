@@ -2,4 +2,6 @@ Imports Script/*__pycache__*
 Imports Script/mrio_models/*
 Imports Script/processed_mrio_resources/*
 Imports Script/output/*
+Imports Script/response_data/*
+Imports Script/API/*API_key.yaml
 !Imports Script/output/imports_multipliers*
