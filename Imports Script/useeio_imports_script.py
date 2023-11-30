@@ -42,10 +42,7 @@ e_d = Exiobase emission factors per unit currency
 dataPath = Path(__file__).parent / 'Data'
 conPath = Path(__file__).parent / 'Concordances'
 resource_Path = Path(__file__).parent / 'processed_mrio_resources'
-im_Path = Path(__file__).parent / 'Imports Multipliers'
-wmd_Path = Path(__file__).parent / 'Output - Weighted_Multipliers, BEA Detail'
-wms_Path = Path(__file__).parent / 'Output - Weighted_Multipliers, BEA Summary'
-sr_Path = Path(__file__).parent / 'Output - Subregional Imports'
+out_Path = Path(__file__).parent / 'output'
 
 flow_cols = ('Flow', 'Compartment', 'Unit',
              'CurrencyYear', 'EmissionYear', 'PriceType',
@@ -161,10 +158,8 @@ def run_script(io_level='Summary', year_start=2007, year_end=2021):
             .assign(ReferenceCurrency='USD')
             .assign(BaseIOLevel='Summary')
             )
-        store_Data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
+        store_data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
                    weighted_multipliers_bea_summary, year)
-    # return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
-    #         weighted_multipliers_bea_summary)
 
 
 def get_tiva_data(year):
@@ -234,34 +229,13 @@ def calc_tiva_coefficients(year):
     return t_c
 
 
-# def download_and_store_mrio(year):
-#     '''
-#     If MRIO object not already present in directory, downloads MRIO object.
-#     '''
-#     file = dataPath / f'IOT_{year}_pxp.zip'
-#     if not file.exists():
-#         exio3 = pymrio.download_exiobase3(storage_folder=dataPath,
-#                                           system='pxp',
-#                                           years=[year])
-#     e = pymrio.parse_exiobase3(file)
-#     exio = {}
-#     exio['M'] = e.impacts.M
-#     exio['x'] = e.x
-#     trade = pymrio.IOSystem.get_gross_trade(e)
-#     # exio['totals'] = trade[1] used bilateral trade values instead
-#     # ^^ df with gross total imports and exports per sector and region
-#     exio['bilat_flows'] = trade[0]
-#     # ^^ df with rows: exporting country and sector, columns: importing countries
-#     pkl.dump(exio, open(dataPath / f'exio3_multipliers_{year}.pkl', 'wb'))
-
-
-def remove_exports(dataframe):
+def remove_exports(df):
     '''Function filters data for positive (export) values and replaces them with 
     a value of 0.
     '''
-    dataframe_values = dataframe._get_numeric_data()
+    dataframe_values = df._get_numeric_data()
     dataframe_values[dataframe_values>0] = 0
-    return dataframe
+    return df
 
 
 def get_tiva_to_exio_concordance():
@@ -489,7 +463,7 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
                                        tiva_summary.groupby(['BEA Summary', 'Flowable'])
                                        ['Amount'].transform('sum'))
 
-    tiva_summary.drop(columns='Amount').to_csv(
+    tiva_summary.drop(columns='Amount').to_csv(out_Path /
         f'import_multipliers_by_TiVA_{year}.csv')
 
     col = [c for c in weighted_df_imports if c in flow_cols]
@@ -503,23 +477,18 @@ def calculateWeightedEFsImportsData(weighted_multipliers,
 
     return imports_multipliers
 
-def store_Data(sr_i,
+def store_data(sr_i,
                imports_multipliers,
                weighted_multipliers_bea_detail,
                weighted_multipliers_bea_summary,
                year):
-    imports_multipliers.to_csv(im_Path / f'imports_multipliers_{year}.csv', index=False)
-    sr_i.to_csv(sr_Path / f'subregion_imports_{year}.csv', index=False)
-    weighted_multipliers_bea_detail.to_csv(wmd_Path / f'weighted_multipliers_detail_{year}.csv', index=False)
-    weighted_multipliers_bea_summary.to_csv(wms_Path / f'weighted_multipliers_summary_{year}.csv', index=False)
-
+    out_Path.mkdir(exist_ok=True)
+    imports_multipliers.to_csv(out_Path / f'imports_multipliers_{year}.csv', index=False)
+    sr_i.to_csv(out_Path / f'subregion_imports_{year}.csv', index=False)
+    weighted_multipliers_bea_detail.to_csv(out_Path / f'weighted_multipliers_detail_{year}.csv', index=False)
+    weighted_multipliers_bea_summary.to_csv(out_Path / f'weighted_multipliers_summary_{year}.csv', index=False)
 
 
 #%%
 if __name__ == '__main__':
     run_script(year_start=2019, year_end=2019)
-    # year = 2019
-    # (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
-    #         weighted_multipliers_bea_summary) = run_script(year=year)
-
-    # imports_multipliers.to_csv(f'imports_multipliers_{year}.csv', index=False)

@@ -1,3 +1,5 @@
 Imports Script/*__pycache__*
 Imports Script/mrio_models/*
 Imports Script/processed_mrio_resources/*
+Imports Script/output/*
+!Imports Script/output/imports_multipliers*
