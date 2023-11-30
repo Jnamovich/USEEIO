@@ -54,9 +54,9 @@ with open(dataPath.parent / "Data" / "exio_config.yml", "r") as file:
     config = yaml.safe_load(file)
 
 
-def run_script(io_level='Summary', year_start=2007, year_end=2021):
+def generate_exio_factors(year_start, year_end, io_level='Summary'):
     '''
-    Runs through script to produce emission factors for U.S. imports.
+    Runs through script to produce emission factors for U.S. imports from exiobase
     '''
     years = list(range(year_start, year_end+1))
     for year in years:
@@ -158,8 +158,11 @@ def run_script(io_level='Summary', year_start=2007, year_end=2021):
             .assign(ReferenceCurrency='USD')
             .assign(BaseIOLevel='Summary')
             )
-        store_data(sr_i, imports_multipliers, weighted_multipliers_bea_detail,
-                   weighted_multipliers_bea_summary, year)
+        store_data(sr_i,
+                   imports_multipliers,
+                   weighted_multipliers_bea_detail,
+                   weighted_multipliers_bea_summary,
+                   year, mrio='exio')
 
 
 def get_tiva_data(year):
@@ -227,15 +230,6 @@ def calc_tiva_coefficients(year):
                    value_name='region_contributions_imports')
 
     return t_c
-
-
-def remove_exports(df):
-    '''Function filters data for positive (export) values and replaces them with 
-    a value of 0.
-    '''
-    dataframe_values = df._get_numeric_data()
-    dataframe_values[dataframe_values>0] = 0
-    return df
 
 
 def get_tiva_to_exio_concordance():
@@ -481,14 +475,19 @@ def store_data(sr_i,
                imports_multipliers,
                weighted_multipliers_bea_detail,
                weighted_multipliers_bea_summary,
-               year):
+               year,
+               mrio):
     out_Path.mkdir(exist_ok=True)
-    imports_multipliers.to_csv(out_Path / f'imports_multipliers_{year}.csv', index=False)
-    sr_i.to_csv(out_Path / f'subregion_imports_{year}.csv', index=False)
-    weighted_multipliers_bea_detail.to_csv(out_Path / f'weighted_multipliers_detail_{year}.csv', index=False)
-    weighted_multipliers_bea_summary.to_csv(out_Path / f'weighted_multipliers_summary_{year}.csv', index=False)
+    imports_multipliers.to_csv(
+        out_Path /f'imports_multipliers_{mrio}_{year}.csv', index=False)
+    sr_i.to_csv(
+        out_Path / f'subregion_imports_{mrio}_{year}.csv', index=False)
+    weighted_multipliers_bea_detail.to_csv(
+        out_Path / f'weighted_multipliers_detail_{mrio}_{year}.csv', index=False)
+    weighted_multipliers_bea_summary.to_csv(
+        out_Path / f'weighted_multipliers_summary_{mrio}_{year}.csv', index=False)
 
 
 #%%
 if __name__ == '__main__':
-    run_script(year_start=2019, year_end=2019)
+    generate_exio_factors(year_start=2019, year_end=2019)
