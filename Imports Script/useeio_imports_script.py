@@ -30,10 +30,6 @@ u_c = useeio detail to summary code concordance
 r_i = imports, by NAICS category, from countries aggregated in 
       TiVA regions (ROW, EU, APAC)
 p_d = dataframe prepared for final factor calculation
-t_r_i = Import quantities, by Exiobase sector, mapped to TiVA-mapped Exiobase
-        countries
-t_r_i_u = Import quantities, by Exiobase sector and BEA sector,
-          mapped to TiVA-mapped Exiobase countries
 c_d = Contribution coefficient matrix
 e_d = Exiobase emission factors per unit currency
 '''
@@ -331,6 +327,7 @@ def pull_exiobase_bilateral_trade(year):
     fields['US'] = 'Bilateral Trade Total'
     t_df = exio['Bilateral Trade']
     t_df = (t_df
+            .filter(['US'])
             .reset_index()
             .rename(columns=fields)
             )
