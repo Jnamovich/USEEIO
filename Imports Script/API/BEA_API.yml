@@ -3,12 +3,11 @@ source_name: International Services
 source_url: https://www.bea.gov/data/intl-trade-investment/international-trade-goods-and-services
 bib_id: BEA
 api_name: BEA
-api_key_required: true
+api_key_required: True
 format: [json,xml]
 url:
   base_url: https://apps.bea.gov/api/data/?
   url_params:
-    UserID: 5667308B-A4FA-4ECB-9F18-DC0D61A97B1B
     Affiliation: AllAffiliations
     method: GetData
     DataSetName: IntlServTrade
@@ -17,5 +16,13 @@ url:
     AreaOrCountry: __areaorcountry__
     Year: __year__
 years:
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2017
+- 2018
 - 2019
 - 2020
+- 2021

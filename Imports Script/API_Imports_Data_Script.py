@@ -6,11 +6,9 @@ import requests
 from pathlib import Path
 
 apiPath = Path(__file__).parent / 'API'
-dataPath = Path(__file__).parent / 'Data'
+dataPath = Path(__file__).parent / 'response_data'
 conPath = Path(__file__).parent / 'Concordances'
   
-request_data = False #0 for no, 1 for yes
-    
 #%%
 
 def get_URL_Components(file):
@@ -20,10 +18,10 @@ def get_URL_Components(file):
     to make requests to either Census or BEA API. Returns yaml-loaded
     dictionary. 
     '''
-    with open(apiPath / file) as f:
+    with open(apiPath / f'{file}.yml') as f:
         try:
-            print('Successfully Loaded',file[:-8],'URL Components')
             m = yaml.safe_load(f)
+            print('Successfully Loaded',file[:-4],'URL Components')
         except yaml.YAMLError as exc:
             print(exc)
     return m
@@ -72,7 +70,7 @@ def get_country_schema():
     c_d = c_c.set_index('ISO Code')['Census Code'].to_dict()
     return (b_d, c_d)
 
-def create_Reqs(file,d):
+def create_Reqs(file, d, year):
     '''
     A function to develop all requests to either Census or BEA API. Requests 
     are developed and stored in a dictionary of the following structure:
@@ -80,24 +78,25 @@ def create_Reqs(file,d):
     '''
     components = get_URL_Components(file)
     reqs = {}
-    for year in components['years']:
-        year_reqs = {}
-        year = str(year)
-        comp = components['url']
-        req_url = comp['base_url']
-        try: 
-            a = comp['api_path']
-            req_url += a
-            ## TODO update handling of API key
-        except KeyError:
-            pass
-        for key, value in comp['url_params'].items():
-            string = f'{key}={value}&'
-            req_url += string
-        req_url = req_url.rstrip('&')
-        year_reqs = complete_URLs(req_url, year, d)
-        reqs[year]=year_reqs
-    print('Successfully Created All', file[:-8], 'Request URLs')
+    year = str(year)
+    comp = components['url']
+    req_url = comp['base_url']
+    for key, value in comp['url_params'].items():
+        string = f'{key}={value}&'
+        req_url += string
+    if components.get('api_key_required', False):
+        try:
+            with open(apiPath / f'{file}_key.yaml') as f:
+                api_key = yaml.safe_load(f)
+            req_url += f'UserID={api_key}&'
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f'API key required for {file}. Create the file '
+                f'"../Imports Script/API/{file}_key.yaml" and add your '
+                f'API key')
+    req_url = req_url.rstrip('&')
+    reqs[year] = complete_URLs(req_url, year, d)
+    print('Successfully Created All', file[:-4], 'Request URLs')
     return reqs
 
 def complete_URLs(req_url, year, d):
@@ -222,27 +221,30 @@ def get_bea_df(d, b_d, data_years):
         df_all = pd.concat([df_all, df], ignore_index=True)
     return df_all
 
-def get_imports_data(request_data, year=2020):
+def get_imports_data(year):
     '''
     A function to call from other scripts.
     '''
     b_d, c_d = get_country_schema()
     year = str(year)
-    if request_data == True:    
-        b_reqs = create_Reqs('BEA_API.yml', b_d)
-        c_reqs = create_Reqs('Census_API.yml', c_d)
-        b_resp = make_reqs('BEA', b_reqs, [year])
-        pkl.dump(b_resp, open(dataPath / f'bea_responses_{year}.pkl', 'wb'))
-        c_resp = make_reqs('Census', c_reqs, [year])
-        pkl.dump(c_resp, open(dataPath / f'census_responses{year}.pkl', 'wb'))
+    try:
+        c_responses = pkl.load(open(dataPath / f'census_responses_{year}.pkl', 'rb'))
+        b_responses = pkl.load(open(dataPath / f'bea_responses_{year}.pkl', 'rb'))
+    except FileNotFoundError:
+        print('Responses not found locally, querying API')
+        dataPath.mkdir(exist_ok=True)
+        b_reqs = create_Reqs('BEA_API', b_d, year)
+        c_reqs = create_Reqs('Census_API', c_d, year)
+        b_responses = make_reqs('BEA', b_reqs, [year])
+        pkl.dump(b_responses, open(dataPath / f'bea_responses_{year}.pkl', 'wb'))
+        c_responses = make_reqs('Census', c_reqs, [year])
+        pkl.dump(c_responses, open(dataPath / f'census_responses_{year}.pkl', 'wb'))
 
-    c_responses = pkl.load(open(dataPath / f'census_responses_{year}.pkl', 'rb'))
-    b_responses = pkl.load(open(dataPath / f'bea_responses_{year}.pkl', 'rb'))
     b_df = get_bea_df(b_responses, b_d, [year])
     c_df = get_census_df(c_responses, c_d, [year])
     i_df = pd.concat([c_df, b_df], ignore_index=True, axis=0)
     i_df['Country'] = i_df['CountryCode'].map(b_d)
-    return(i_df)
+    return i_df
 
 if __name__ == '__main__':
-    id_f = get_imports_data(request_data=request_data)
+    id_f = get_imports_data(year=2018)
