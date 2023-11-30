@@ -1,14 +1,16 @@
 import pandas as pd
-import pymrio
 import pickle as pkl
 import yaml
 import statistics
 from currency_converter import CurrencyConverter
 from datetime import date
 from pathlib import Path
-from API_Imports_Data_Script import get_imports_data
-from Exiobase_downloads import run_All
+
+import fedelemflowlist as fedelem
 from esupy.dqi import get_weighted_average
+
+from API_Imports_Data_Script import get_imports_data
+from Exiobase_downloads import process_exiobase
 #%%
 ''' 
 VARIABLES:
@@ -39,9 +41,7 @@ e_d = Exiobase emission factors per unit currency
 #%%
 dataPath = Path(__file__).parent / 'Data'
 conPath = Path(__file__).parent / 'Concordances'
-bt_Path = Path(__file__).parent / 'Exiobase Bilateral Trade'
-ef_Path = Path(__file__).parent / 'Exiobase EF-Arrays'
-m_Path = Path(__file__).parent / 'Exiobase M-Arrays'
+resource_Path = Path(__file__).parent / 'processed_mrio_resources'
 im_Path = Path(__file__).parent / 'Imports Multipliers'
 wmd_Path = Path(__file__).parent / 'Output - Weighted_Multipliers, BEA Detail'
 wms_Path = Path(__file__).parent / 'Output - Weighted_Multipliers, BEA Summary'
@@ -57,12 +57,11 @@ with open(dataPath.parent / "Data" / "exio_config.yml", "r") as file:
     config = yaml.safe_load(file)
 
 
-def run_script(io_level='Summary', year_Start=2007, year_End=2021, 
-               get_All_Exiobase_Assets=False, download_Exiobase_Models=False):
+def run_script(io_level='Summary', year_start=2007, year_end=2021):
     '''
     Runs through script to produce emission factors for U.S. imports.
     '''
-    years = years_List(year_Start, year_End)
+    years = list(range(year_start, year_end+1))
     for year in years:
         # Country imports by detail sector
         sr_i = get_subregion_imports(year)
@@ -84,8 +83,6 @@ def run_script(io_level='Summary', year_Start=2007, year_End=2021,
     
         if sum(c_d.duplicated(['CountryCode', 'BEA Detail'])) > 0:
             print('Error calculating country coefficients by detail sector')
-        if get_All_Exiobase_Assets == True:
-            run_All(year_Start,year_End,download_Exiobase_Models)
         e_u = get_exio_to_useeio_concordance()
         e_d = pull_exiobase_multipliers(year)
         e_bil = pull_exiobase_bilateral_trade(year)
@@ -118,12 +115,11 @@ def run_script(io_level='Summary', year_Start=2007, year_End=2021,
             .assign(Unit='kg')
             .assign(ReferenceCurrency='Euro')
             .assign(CurrencyYear=str(year))
-            .assign(EmissionYear=str(year))
+            .assign(EmissionYear='2019' if year > 2019 else str(year))
             # ^^ GHG data stops at 2019
             .assign(PriceType='Basic')
             )
     
-        import fedelemflowlist as fedelem
         fl = (fedelem.get_flows()
               .query('Flowable in @multiplier_df.Flow')
               .filter(['Flowable', 'Context', 'Flow UUID'])
@@ -169,15 +165,6 @@ def run_script(io_level='Summary', year_Start=2007, year_End=2021,
                    weighted_multipliers_bea_summary, year)
     # return (sr_i, imports_multipliers, weighted_multipliers_bea_detail, 
     #         weighted_multipliers_bea_summary)
-
-def years_List(Year_Start, Year_End):
-    '''
-    A function to set the range of years the user desires to download exiobase
-    models for, or to extract components of those models.
-    '''
-    Year_End += 1 
-    years = list(range(Year_Start,Year_End))
-    return years
 
 
 def get_tiva_data(year):
@@ -344,25 +331,38 @@ def pull_exiobase_multipliers(year):
     '''
     Extracts multiplier matrix from stored Exiobase model.
     '''
-    file = ef_Path/f'exio3_EFs_{year}.pkl'
+    file = resource_Path / f'exio_all_resources_{year}.pkl'
     if not file.exists():
-        print(f"Exiobase EFs Multiplier Does not Exist for Year:{year}, Please Download & Process")
-    EF_df = pkl.load(open(file,'rb'))
-    
-    return EF_df
+        print(f"Exiobase data not found for {year}")
+        process_exiobase(year_start=year, year_end=year, download=True)
+    exio = pkl.load(open(file,'rb'))
+    M_df = exio['M']
+
+    fields = {**config['fields'], **config['flows']}
+
+    M_df = M_df.loc[M_df.index.isin(fields.keys())]
+    M_df = (M_df
+            .transpose()
+            .reset_index()
+            .rename(columns=fields)
+            .assign(Year=str(year))
+            )
+    return M_df
 
 
 def pull_exiobase_bilateral_trade(year):
     '''
     Extracts industry output vector from stored Exiobase model.
     '''
-    file = bt_Path/f'exio_bilateral_trade_{year}.pkl'
+    file = resource_Path / f'exio_all_resources_{year}.pkl'
     if not file.exists():
-        print(f"Exiobase Bilateral Trade Data Does not Exist for Year:{year}, Please Download & Process")
+        print(f"Exiobase data not found for {year}")
+        process_exiobase(year_start=year, year_end=year, download=True)
     exio = pkl.load(open(file,'rb'))
     fields = {**config['fields'], **config['flows']}
     fields['US'] = 'Bilateral Trade Total'
-    t_df = (exio
+    t_df = exio['Bilateral Trade']
+    t_df = (t_df
             .reset_index()
             .rename(columns=fields)
             )
@@ -517,7 +517,7 @@ def store_Data(sr_i,
 
 #%%
 if __name__ == '__main__':
-    run_script(year_Start=2019, year_End=2019)
+    run_script(year_start=2019, year_end=2019)
     # year = 2019
     # (import_totals, imports_multipliers, weighted_multipliers_bea_detail, 
     #         weighted_multipliers_bea_summary) = run_script(year=year)
