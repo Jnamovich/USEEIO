@@ -90,10 +90,10 @@ def create_Reqs(file, d, year):
                 api_key = yaml.safe_load(f)
             req_url += f'UserID={api_key}&'
         except FileNotFoundError:
-            print(f'API key required for {file}. Create the file '
-                  f'../imports script/API/{file}_key.yaml and add your '
-                  f'API key')
-            return
+            raise FileNotFoundError(
+                f'API key required for {file}. Create the file '
+                f'"../Imports Script/API/{file}_key.yaml" and add your '
+                f'API key')
     req_url = req_url.rstrip('&')
     reqs[year] = complete_URLs(req_url, year, d)
     print('Successfully Created All', file[:-4], 'Request URLs')
@@ -238,7 +238,7 @@ def get_imports_data(year):
         b_responses = make_reqs('BEA', b_reqs, [year])
         pkl.dump(b_responses, open(dataPath / f'bea_responses_{year}.pkl', 'wb'))
         c_responses = make_reqs('Census', c_reqs, [year])
-        pkl.dump(c_responses, open(dataPath / f'census_responses{year}.pkl', 'wb'))
+        pkl.dump(c_responses, open(dataPath / f'census_responses_{year}.pkl', 'wb'))
 
     b_df = get_bea_df(b_responses, b_d, [year])
     c_df = get_census_df(c_responses, c_d, [year])
