@@ -85,11 +85,11 @@ def generate_exio_factors(year_start, year_end, io_level='Summary'):
     
         e_d = (e_d.merge(e_bil, on=['CountryCode','Exiobase Sector'], how='left')
                   .merge(e_u, on='Exiobase Sector', how='left')
-                  )
+                  .drop(columns=['Exiobase Sector','Year']))
         e_d = e_d.query('`Bilateral Trade Total` > 0')
         # INSERT HERE TO REVIEW SECTOR CONTRIBUTIONS WITHIN A COUNTRY
         agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
-        for c in [c for c in agg.columns if c not in ['Bilateral Trade Total']]:
+        for c in [c for c in agg.columns if c not in ['Bilateral Trade Total','Year']]:
             agg[c] = get_weighted_average(e_d, c, 'Bilateral Trade Total', 
                                           ['BEA Detail','CountryCode'])
     
@@ -211,8 +211,7 @@ def calc_tiva_coefficients(year):
            .reset_index()
            .rename(columns={'IOCode': 'BEA Imports'})
            .merge(corr, on='BEA Imports', how='left', validate='one_to_many')
-           .groupby('BEA Summary').agg('sum')
-           )
+           .groupby('BEA Summary').agg('sum').drop(columns='BEA Imports'))
     count = list(t_c.loc[(t_c.sum(axis=1) != 0),].reset_index()['BEA Summary'])
     ## ^^ Sectors with imports
     t_c = (t_c.div(t_c.sum(axis=1), axis=0).fillna(0)
