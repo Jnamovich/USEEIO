@@ -89,7 +89,7 @@ def generate_exio_factors(year_start, year_end, io_level='Summary'):
         e_d = e_d.query('`Bilateral Trade Total` > 0')
         # INSERT HERE TO REVIEW SECTOR CONTRIBUTIONS WITHIN A COUNTRY
         agg = e_d.groupby(['BEA Detail', 'CountryCode']).agg('sum')
-        for c in [c for c in agg.columns if c not in ['Bilateral Trade Total','Year']]:
+        for c in [c for c in agg.columns if c not in ['Bilateral Trade Total']]:
             agg[c] = get_weighted_average(e_d, c, 'Bilateral Trade Total', 
                                           ['BEA Detail','CountryCode'])
     
@@ -486,4 +486,4 @@ def store_data(sr_i,
 
 #%%
 if __name__ == '__main__':
-    generate_exio_factors(year_start=2019, year_end=2019)
+    generate_exio_factors(year_start=2013, year_end=2013)
