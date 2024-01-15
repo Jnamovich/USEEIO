@@ -211,7 +211,8 @@ def calc_tiva_coefficients(year):
            .reset_index()
            .rename(columns={'IOCode': 'BEA Imports'})
            .merge(corr, on='BEA Imports', how='left', validate='one_to_many')
-           .groupby('BEA Summary').agg('sum').drop(columns='BEA Imports'))
+           .drop(columns='BEA Imports')
+           .groupby('BEA Summary').agg('sum'))
     count = list(t_c.loc[(t_c.sum(axis=1) != 0),].reset_index()['BEA Summary'])
     ## ^^ Sectors with imports
     t_c = (t_c.div(t_c.sum(axis=1), axis=0).fillna(0)
